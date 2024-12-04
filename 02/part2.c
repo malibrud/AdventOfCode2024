@@ -25,7 +25,10 @@ int main( int argc, char **argv ) {
         int val;
         int i = 0;
         char *cursor = line;
-        while( tryNextInt( &cursor, &val ) ) levels[i++] = val;
+        while( tryNextInt( &cursor, &val ) ) {
+            check( i < N_MAX, 1, "Error: exceeded level array length." );
+            levels[i++] = val;
+        }
         count += isSafeWithFault( levels, i );
     }
     fclose( f );
