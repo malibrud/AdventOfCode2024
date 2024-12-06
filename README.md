@@ -125,4 +125,41 @@ bool tryParseMult( char **inoutCursor, int *outProduct ) {
 ## [Day 04](https://adventofcode.com/2024/day/4)
 
 Pretty simple word search algorithm.  In both parts, the strategy was just to scan over the grid and pattern match.
+My approach to pattern matching is exemplified in the part 2 main function:
+
+```C
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Grid grid;
+    check( tryGetGridFromFile( argv[ 1 ], &grid ), "Error: Could not read grid from %s.", argv[ 1 ] );
+
+    int count = 0;
+    char **g = grid.grid;
+
+    // Count matches in positive diagonals
+    for ( int r = 0 ; r < grid.R - 2 ; r++ )
+    for ( int c = 0 ; c < grid.C - 2 ; c++ )
+    {
+        if ( g[r + 1][c + 1] != 'A' ) continue;
+        char ul = g[r + 0][c + 0];
+        char ur = g[r + 0][c + 2];
+        char ll = g[r + 2][c + 0];
+        char lr = g[r + 2][c + 2];
+
+        bool posDiag = 
+            ul == 'M' && lr == 'S' ||
+            ul == 'S' && lr == 'M'
+        ;
+        bool negDiag = 
+            ur == 'M' && ll == 'S' ||
+            ur == 'S' && ll == 'M'
+        ;
+        count += posDiag && negDiag;
+    }
+
+    printf( "%d\n", count );
+    return 0;
+}
+```
 
