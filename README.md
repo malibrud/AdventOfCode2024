@@ -121,3 +121,8 @@ bool tryParseMult( char **inoutCursor, int *outProduct ) {
     return true;
 }
 ```
+
+## [Day 04](https://adventofcode.com/2024/day/4)
+
+Pretty simple word search algorithm.  In both parts, the strategy was just to scan over the grid and pattern match.
+
