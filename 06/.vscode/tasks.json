@@ -1,0 +1,17 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build part 1",
+            "type": "shell",
+            "command": "cmd /c build.bat part1"
+        },
+        {
+            "label": "build part 2",
+            "type": "shell",
+            "command": "cmd /c build.bat part2"
+        }
+    ]
+}
