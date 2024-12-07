@@ -163,3 +163,106 @@ int main( int argc, char **argv ) {
 }
 ```
 
+
+## [Day 05](https://adventofcode.com/2024/day/5)
+
+Since the _page_ numbers were two digit numbers (i.e. 01..99 ), i deciced to create a boolean array of size 10,000 where 
+the index encoded the two numbers. The thousands and hundreds digits stored the first page and the tens and ones place stored
+the second _page_.  To test for validity of an _update_ I went through the _update_ on a pair wise basis.  If there 
+was a _rule_ violation, I skipped to the next _update_.
+
+The code for encoding the rules as a boolean array is
+
+```C
+    *outRules = malloc( 10000 * sizeof( bool ) );
+    if ( *outRules == NULL ) return false;
+    for ( int i = 0 ; i < 10000 ; i++ ) (*outRules)[ i ] = false;
+
+    // Read the rules
+    char rule[ 8 ];
+    while ( fgets( rule, 8, f ) && rule[ 0 ] != '\n' ) {
+        int p1, p2;
+        check( 2 == sscanf( rule, "%d|%d", &p1, &p2 ), "Error: Could not scan rule %s", rule );
+        check( p1 < 100 && p2 < 100, "Error: rule values must be only two digits." );
+        int idx = 100 * p1 + p2;
+        (*outRules)[ idx ] = true;
+    }
+```
+
+This made the main function relative simple and straight forward.  Note that I use `goto` to break out of the two inner loops.  Here is the main function:
+
+```C
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    bool *rules;
+    Update *updates;
+    int nUpdates;
+    check( tryGetRulesAndUpdates( argv[ 1 ], &rules, &updates, &nUpdates ), "Error: Could not read rules and pages from %s.", argv[ 1 ] );
+
+    int sum = 0;
+    for ( int u = 0 ; u < nUpdates ; u++ ) {
+        int N      = updates[ u ].N;
+        int *pages = updates[ u ].pages;
+
+        // Iterate through all pairs of pages with the one indexed by i always before j.
+        for ( int i = 0   ; i < N ; i++ )
+        for ( int j = i+1 ; j < N ; j++ )
+        {
+            // look for rule in reverse order to detect a rule which is violated by the pair.
+            int page1 = pages[ i ];
+            int page2 = pages[ j ];
+            int idx = 100*page2 + page1;
+            if ( rules[ idx ] ) goto RULE_VIOLATION;
+        }
+        // All pages satisfy the rules
+        assert( N % 2 == 1 );
+        sum += pages[ N / 2 ];
+        continue;
+
+    RULE_VIOLATION:
+        continue;
+    }
+
+    printf( "%d\n", sum );
+    return 0;
+}
+```
+
+For part 2, same logic was used to detect violations, but I just used my rule base as a "comparison" to implement a simple bubble sort.  
+
+```C
+int main( int argc, char **argv ) {
+
+    // Omitted for brevity... same as part 1
+
+    for ( int u = 0 ; u < nUpdates ; u++ ) {
+
+        //
+        // Same code for part 1
+        //
+
+    RULE_VIOLATION:
+        // Sort the pages using the rules
+        for ( int i = 0   ; i < N ; i++ )
+        for ( int j = i+1 ; j < N ; j++ )
+        {
+            // look for rule in reverse order to detect a rule which is violated by the pair.
+            int page1 = pages[ i ];
+            int page2 = pages[ j ];
+            int idx = 100*page2 + page1;
+            if ( rules[ idx ] ) {
+                pages[ i ] = page2;
+                pages[ j ] = page1;
+            }
+        }
+
+        assert( N % 2 == 1 );
+        sum += pages[ N / 2 ];
+        continue;
+    }
+
+    printf( "%d\n", sum );
+    return 0;
+}
+```
