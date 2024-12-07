@@ -80,7 +80,7 @@ bool tryGetRulesAndUpdates( char *inFileName, bool **outRules,  Update **outUpda
     while ( fgets( line, MAX_LINE, f ) ) {
         check( i < MAX_UPDATES, "Error: Number of 'updates' exceeded the fixed max of %d", MAX_UPDATES );
         int len = (int)strlen( line );
-        int n = ( len ) / 3;
+        int n = ( len + 1 ) / 3;
         int *updatePtr = malloc( n * sizeof( int ) );
         if ( updatePtr == NULL ) return false;
         for ( int j = 0 ; j < n ; j++ ) {
