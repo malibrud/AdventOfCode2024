@@ -25,7 +25,7 @@
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
-            "console": "internalConsole",
+            "console": "integratedTerminal",
             "preLaunchTask": "build part 2"
         }
     ]

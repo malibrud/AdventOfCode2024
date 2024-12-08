@@ -266,3 +266,112 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 06](https://adventofcode.com/2024/day/6)
+
+Day six was a maze navigation puzzle.  Part 1 was pretty straight forward.  I encoded the direction as a vector `(dx, dy)`
+which was then rotated by 90 deg if an obstacle was it.  
+
+The main funtion implements the navigation as follows:
+
+```C
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Map map;
+    check( tryGetMapFromFile( argv[ 1 ], &map ), "Error: Could not read map from %s.", argv[ 1 ] );
+    int X = map.X;
+    int Y = map.Y;
+
+    int steps = 1;
+    while ( true ) {
+        map.map[ map.y ][ map.x ] = 'X';
+        int nx = map.x + map.dx;
+        int ny = map.y + map.dy;
+
+        if ( nx < 0 || nx == X ) break;
+        if ( ny < 0 || ny == Y ) break;
+        
+        if ( map.map[ ny ][ nx ] == '#' ) {
+            rotateBy90deg( &map.dx, &map.dy );
+            continue;
+        }
+
+        map.x = nx;
+        map.y = ny;
+        if ( map.map[ ny ][ nx ] != 'X' ) steps++;
+    }
+    printf( "%d\n", steps );
+    return 0;
+}
+```
+
+In part 2, I was asked to add one additional obstacle for each open position.  I was then to count the number of such 
+configuration for which the maze hit an infinite loop.  I chose to code each visited spot with a number starting with ascii `'1'`
+and then increment the value by 1 each time it was visited.  In this way, an infinite loop could be detected by a total of 
+4 visits (i.e. entering from each direction at least once).  This was all wrapped in a loop which had to reset the map
+for every iteration.
+
+```C
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Map map;
+    check( tryGetMapFromFile( argv[ 1 ], &map ), "Error: Could not read map from %s.", argv[ 1 ] );
+    char* origMap = malloc( map.nRawBytes );
+    check ( origMap, "Could not allocate origMap." );
+
+    // Remember original state;
+    memcpy( origMap, map._rawData, map.nRawBytes );
+    Map map0 = map;
+    int X = map.X;
+    int Y = map.Y;
+
+    int count = 0;
+    for ( int yo = 0 ; yo < Y ; yo++ )
+    for ( int xo = 0 ; xo < X ; xo++ )
+    {
+        // Restore original state.
+        memcpy( map._rawData, origMap, map.nRawBytes );
+        map = map0;
+
+        char p = map.map[ yo ][ xo ];
+        if ( p == '#'  ) continue;
+        if ( p == '^'  ) continue;
+
+        // Place the extra obstacle.
+        map.map[ yo ][ xo ] = 'O';
+
+        while ( true ) {
+            if ( map.map[ map.y ][ map.x ] == '4' ) {
+                count++;
+                break;
+            }
+
+            int nx = map.x + map.dx;
+            int ny = map.y + map.dy;
+
+            if ( nx < 0 || nx == X ) break;
+            if ( ny < 0 || ny == Y ) break;
+            
+            char c = map.map[ ny ][ nx ];
+            if ( c == '#' || c == 'O' ) {
+                rotateBy90deg( &map.dx, &map.dy );
+                continue;
+            }
+
+            c = map.map[ map.y ][ map.x ];
+            if      ( c == '.' ) c = '1';
+            else if ( c == '^' ) c = '1';
+            else if ( c >= '1' ) c++;
+            map.map[ map.y ][ map.x ] = c;
+
+            map.x = nx;
+            map.y = ny;
+        }
+    }
+
+    printf( "%d\n", count );
+    return 0;
+}
+```
