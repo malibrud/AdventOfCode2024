@@ -83,14 +83,6 @@ bool tryGetEqnsFromFile( char *inFileName, Equation *outEqns, int *outEqnCount )
     return true;
 }
 
-void rotateBy90deg( int *inoutDx, int *inoutDy ) {
-    int dx = *inoutDx;
-    int dy = *inoutDy;
-
-    *inoutDx = -dy;
-    *inoutDy = +dx;
-}
-
 #define ERR_RET_VAL 1
 void check( bool success, char *format, ... ) {
     if ( success ) return;
