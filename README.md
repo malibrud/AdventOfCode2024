@@ -375,3 +375,86 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 07](https://adventofcode.com/2024/day/7)
+
+Essence of the problem was to explore all permutations of operators between integers to test against an expected result.
+Part 1 was easy because there were two alternatives and the permutations could be represented by a bit mask.  For part 2
+I used the same approach but with base 3 numbers.  Because I could not directly mask the bits from a base 3 number, 
+extraction of the digits was a little more involved but nonetheless the same as in the base 2 numbering systems.
+
+Part 1 solution looks like this:
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Equation eqns[ MAX_EQNS ];
+    int E;
+    check( tryGetEqnsFromFile( argv[ 1 ], eqns, &E ), "Error: Could not read equations from %s.", argv[ 1 ] );
+
+    uint64_t sum = 0;
+    for ( int e = 0 ; e < E ; e++ ) {
+        Equation *eq = eqns + e;
+        int *nums = eq->numbers;
+        int nOp = eq->count - 1;
+        int P = 1 << nOp;
+        for ( int mask = 0 ; mask < P ; mask++ )
+        {
+            uint64_t result = nums[ 0 ];
+            for ( int op = 0 ; op < nOp ; op++ ) {
+                int num = nums[ op + 1 ];
+                if ( mask & ( 1 << op ) ) result += num;
+                else                      result *= num;
+            }
+            if ( result == eq->result ) {
+                sum += result;
+                break;
+            }
+        }
+    }
+
+    printf( "%lld\n", sum );
+    return 0;
+}
+```
+
+and the part 2 solution looks like this:
+
+```C
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Equation eqns[ MAX_EQNS ];
+    int E;
+    check( tryGetEqnsFromFile( argv[ 1 ], eqns, &E ), "Error: Could not read equations from %s.", argv[ 1 ] );
+
+    uint64_t sum = 0;
+    for ( int e = 0 ; e < E ; e++ ) {
+        Equation *eq = eqns + e;
+        int *nums = eq->numbers;
+        int nOp = eq->count - 1;
+        uint64_t P = threeToThePower( nOp );
+        for ( uint64_t mask = 0 ; mask < P ; mask++ )
+        {
+            uint64_t result = nums[ 0 ];
+            uint64_t place = 1;
+            for ( int op = 0 ; op < nOp ; op++ ) {
+                int num = nums[ op + 1 ];
+                uint64_t digit = ( mask % ( place * 3 ) ) / place;
+                place *= 3;
+                if      ( digit == 0 ) result *= num;
+                else if ( digit == 1 ) result += num;
+                else if ( digit == 2 ) result = shiftByDigitCountIn( result, num ) + num;
+            }
+            if ( result == eq->result ) {
+                sum += result;
+                break;
+            }
+        }
+    }
+
+    printf( "%lld\n", sum );
+    return 0;
+}
+```
