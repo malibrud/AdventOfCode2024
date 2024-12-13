@@ -458,3 +458,74 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 08](https://adventofcode.com/2024/day/8)
+
+This problem was basic vector math.  Find all pairs of like _frequencies_ and find the same points projected linearly
+along the line of the two.  Parts 1 and 2 are very similar.  Here I only post the part 2 solution because it is a 
+generalization of the part 1 solution.
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Map map;
+    check( tryGetMapFromFile( argv[ 1 ], &map ), "Error: Could not read equations from %s.", argv[ 1 ] );
+    int Y = map.Y;
+    int X = map.X;
+
+    // Find the anti-nodes
+    int N = map.rawSize;
+    for ( int i = 0 ; i < N ; i++)
+    {
+        int x1 = i % map.stride;
+        int y1 = i / map.stride;
+        if ( map.map[y1][x1] == '.' ) continue;
+        if ( x1 >= X ) continue;
+        char c1 = map.map[y1][x1];
+        for ( int j = i + 1 ; j < N ; j++)
+        {
+            int x2 = j % map.stride;
+            int y2 = j / map.stride;
+            if ( map.map[y2][x2] != c1 ) continue;
+            if ( x2 >= X ) continue;
+            int dx = x2 - x1;
+            int dy = y2 - y1;
+            int x, y;
+
+            // Try antinodes behind x1, y1
+            x = x1;
+            y = y1;
+            int k = 0;
+            while ( x >= 0 && x < X && y >= 0 && y < Y ) {
+                map.amap[y][x] = '#';
+                x = x1 - k*dx;
+                y = y1 - k*dy;
+                k++;
+            } 
+
+            // Try antinodes beyond x2, y2
+            x = x2;
+            y = y2;
+            k = 0;
+            while ( x >= 0 && x < X && y >= 0 && y < Y ) {
+                map.amap[y][x] = '#';
+                x = x2 + k*dx;
+                y = y2 + k*dy;
+                k++;
+            } 
+        }
+    }
+
+    // Count the anti-nodes.
+    int count = 0;
+    for ( int y = 0 ; y < Y ; y++)
+    for ( int x = 0 ; x < Y ; x++)
+    {
+        if ( map.amap[y][x] == '#' ) count++;
+    }
+
+    printf( "%d\n", count );
+    return 0;
+}
+```
