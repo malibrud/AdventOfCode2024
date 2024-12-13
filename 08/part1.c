@@ -92,7 +92,7 @@ bool tryGetMapFromFile( char *inFileName, Map *outMap ){
     char *data = outMap->rawMap;
     outMap->rawSize = N + 1;
 
-    int nRead = fread( data, 1, N, f );
+    int nRead = (int)fread( data, 1, N, f );
     fclose( f );
     if ( nRead != N ) return false;
     data[ N ] = '\0';

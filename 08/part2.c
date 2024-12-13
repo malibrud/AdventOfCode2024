@@ -55,15 +55,27 @@ int main( int argc, char **argv ) {
             int dy = y2 - y1;
             int x, y;
 
-            // Try antinode behind x1, y1
-            x = x1 - dx;
-            y = y1 - dy;
-            if ( x >= 0 && x < X && y >= 0 && y < Y ) map.amap[y][x] = '#';
+            // Try antinodes behind x1, y1
+            x = x1;
+            y = y1;
+            int k = 0;
+            while ( x >= 0 && x < X && y >= 0 && y < Y ) {
+                map.amap[y][x] = '#';
+                x = x1 - k*dx;
+                y = y1 - k*dy;
+                k++;
+            } 
 
-            // Try antinode beyond x2, y2
-            x = x2 + dx;
-            y = y2 + dy;
-            if ( x >= 0 && x < X && y >= 0 && y < Y ) map.amap[y][x] = '#';
+            // Try antinodes beyond x2, y2
+            x = x2;
+            y = y2;
+            k = 0;
+            while ( x >= 0 && x < X && y >= 0 && y < Y ) {
+                map.amap[y][x] = '#';
+                x = x2 + k*dx;
+                y = y2 + k*dy;
+                k++;
+            } 
         }
     }
 
@@ -92,7 +104,7 @@ bool tryGetMapFromFile( char *inFileName, Map *outMap ){
     char *data = outMap->rawMap;
     outMap->rawSize = N + 1;
 
-    int nRead = fread( data, 1, N, f );
+    int nRead = (int)fread( data, 1, N, f );
     fclose( f );
     if ( nRead != N ) return false;
     data[ N ] = '\0';
