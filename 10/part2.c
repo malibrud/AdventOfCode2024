@@ -8,9 +8,6 @@
 #include <stdbool.h>
 #include <assert.h>
 
-#define VISITED_BIT 0x40
-#define VALUE_MASK  0x3f
-
 typedef struct {
     int X, Y;   // x and y dimensions of the map
     char **map;
@@ -37,11 +34,6 @@ int main( int argc, char **argv ) {
     {
         if ( map.map[ y ][ x ] != '0' ) continue;
         count += getTrailTo9Count( &map, x, y );
-
-        // clear the visited bit
-        for ( int i = 0 ; i < map.rawSize ; i++ ) {
-            map.rawMap[ i ] &= VALUE_MASK;
-        }
     }
 
     printf( "%d\n", count );
@@ -50,9 +42,6 @@ int main( int argc, char **argv ) {
 
 int getTrailTo9Count( Map *map, int x, int y ) {
     char curVal = map->map[ y ][ x ];
-    if ( curVal & VISITED_BIT ) return 0;
-    map->map[ y ][ x ] = curVal | VISITED_BIT;
-
     if ( curVal == '9' ) {
         // printf( "(%d, %d) = %c, count = %d\n", x, y, curVal, 1 );
         return 1;
