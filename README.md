@@ -615,3 +615,83 @@ And part 2 solution is a little more complicated for the compression part.  The 
         src--;
     }
 ```
+
+## [Day 10](https://adventofcode.com/2024/day/10)
+
+This was a map search problem that required finding the count of paths that ended at unique places (part 1) and the total
+number of unique paths (part 2).  Part 1 was actually more complex than part 2 in that I had to remember that I visited 
+a spot before.  For this reason I am only showing the part 1 solution here.  To get to part 2, you only need to remove
+the logic surrounding `VISITED_BIT` AND `VALUE_MASK`.  Because the values are ascii `'0'` to `'9'` I am free to use the 
+sixth bit to indicate a visited state.  For each new search, this needs to be reset.  Here is the code.
+
+```c
+#define VISITED_BIT 0x40
+#define VALUE_MASK  0x3f
+
+typedef struct {
+    int X, Y;   // x and y dimensions of the map
+    char **map;
+    char *rawMap;
+    int rawSize;
+    int stride;
+} Map;
+
+void check( bool success, char *format, ... );
+bool tryGetMapFromFile( char *inFileName, Map *outMap );
+int getTrailTo9Count( Map *map, int x, int y );
+
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Map map;
+    check( tryGetMapFromFile( argv[ 1 ], &map ), "Error: Could not read disk map from %s.", argv[ 1 ] );
+    int X = map.X;
+    int Y = map.Y;
+
+    int count = 0;
+    for ( int y = 0 ; y < Y ; y++ )
+    for ( int x = 0 ; x < X ; x++ )
+    {
+        if ( map.map[ y ][ x ] != '0' ) continue;
+        count += getTrailTo9Count( &map, x, y );
+
+        // clear the visited bit
+        for ( int i = 0 ; i < map.rawSize ; i++ ) {
+            map.rawMap[ i ] &= VALUE_MASK;
+        }
+    }
+
+    printf( "%d\n", count );
+    return 0;
+}
+
+int getTrailTo9Count( Map *map, int x, int y ) {
+    char curVal = map->map[ y ][ x ];
+    if ( curVal & VISITED_BIT ) return 0;
+    map->map[ y ][ x ] = curVal | VISITED_BIT;
+
+    if ( curVal == '9' ) {
+        // printf( "(%d, %d) = %c, count = %d\n", x, y, curVal, 1 );
+        return 1;
+    }
+
+    int count = 0;
+    int dx = 1;
+    int dy = 0;
+    for ( int i = 0 ; i < 4 ; i++ ) {
+        int nx = x + dx;
+        int ny = y + dy;
+        int ndx = -dy;
+        int ndy = +dx;
+        dy = ndy;
+        dx = ndx;
+
+        if ( nx < 0 || nx >= map->X ) continue;
+        if ( ny < 0 || ny >= map->Y ) continue;
+        char nxtVal = map->map[ ny ][ nx ];
+        if ( nxtVal == curVal + 1 ) count += getTrailTo9Count( map, nx, ny );
+    }
+    // printf( "(%d, %d) = %c, count = %d\n", x, y, curVal, count );
+    return count;
+}
+```
