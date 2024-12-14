@@ -8,10 +8,6 @@
 #include <stdbool.h>
 #include <assert.h>
 
-#define MAX_NUMBERS 16
-#define MAX_EQNS    900
-
-
 typedef struct {
     int X, Y;   // x and y dimensions of the map
     char **map;
