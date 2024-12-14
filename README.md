@@ -529,3 +529,89 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 09](https://adventofcode.com/2024/day/9)
+
+This was about expanding provided information in to fragmented disk and then compressing it down to fill free space.  For part 1
+it was done by _blocks_ and for part 2 is was done by _file_.
+
+Part 1 solution is:
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    DiskMap map;
+    check( tryGetDiskMapFromFile( argv[ 1 ], &map ), "Error: Could not read disk map from %s.", argv[ 1 ] );
+
+    // Get the uncompressed size
+    int uncSize = 0;
+    char *ptr = map.map;
+    while ( *ptr ) uncSize += *ptr++ - '0';
+    int *uncDisk = malloc( uncSize * sizeof( int ) );
+
+    // Uncompress the disk
+    int ui = 0;
+    for ( int i = 0 ; i < map.mapSize ; i++ ) {
+        int blockSize = map.map[ i ] - '0';
+        int fillVal = ( i % 2 == 0 ) ? i / 2 : -1;
+        for ( int j = 0 ; j < blockSize ; j++ ) {
+            uncDisk[ ui++ ] = fillVal;
+        }
+    }
+
+    // Compress the blocks
+    int *dst = uncDisk;
+    int *src = uncDisk + uncSize - 1;
+    while ( true ) {
+        while ( *dst != -1 && dst <= src ) dst++;
+        while ( *src == -1 && dst <= src ) src--;
+        if ( dst >= src ) break;
+        *dst = *src;
+        *src = -1;
+    }
+
+    // Compute the checksum.
+    uint64_t sum = 0;
+    for ( int i = 0 ; uncDisk[ i ] != -1 ; i++ ) {
+        sum += i * uncDisk[ i ];
+    }
+
+    printf( "%lld\n", sum );
+    return 0;
+}
+```
+
+And part 2 solution is a little more complicated for the compression part.  The compression part only follows:
+
+```c
+    // Compress the blocks
+    int *src = uncDisk + uncSize - 1;
+    while ( src > uncDisk ) {
+        while ( *src == -1 && src >= uncDisk ) src--;
+        int srcLen = 0;
+        int c = *src;
+        while( src[ -srcLen ] == c) srcLen++;
+        src = src - srcLen + 1;
+
+        int *dst = uncDisk;
+        while ( dst < src )
+        {
+            while ( *dst != -1 && dst <= src ) dst++;
+            int dstLen = 0;
+            while ( dst[ dstLen ] == -1 ) dstLen++;
+            if ( dstLen < srcLen ) {
+                dst += dstLen;
+                continue;
+            }
+
+            for ( int i = 0 ; i < srcLen ; i++ ) 
+            {
+                dst[ i ] = src[ i ];
+                src[ i ] = -1;
+            }
+            break;
+        }
+        src--;
+    }
+```
