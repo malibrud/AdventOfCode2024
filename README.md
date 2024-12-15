@@ -695,3 +695,102 @@ int getTrailTo9Count( Map *map, int x, int y ) {
     return count;
 }
 ```
+
+## [Day 11](https://adventofcode.com/2024/day/11)
+
+Parts 1 and 2 only differed by the depth of the recursion with part 1 being 25 deep and part 2 being 75 deep.  This made
+a huge difference in terms of performance.  With part 1 a recursive approach wored in reasonable time, for part 2 this approach
+was infeasible due to the long running times.
+
+To improve performance for part 2, I develop a very simple grid based caching scheme where counts were stored in an x,y grid
+with x correstonding to the _blinks_ and y correstonding to the _stone_ value.  I only cashed results for the bottom 1,000
+stone values as I figured that these would be more common.  Anyway, this is what the main and recursive counting function looked
+like:
+
+```c
+#define BLINKS 75
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    uint64_t *stones;
+    int N;
+    check( tryGetStonesFromFile( argv[ 1 ], &stones, &N ), "Error: Could not read %s.", argv[ 1 ] );
+
+    initCache( 1000, BLINKS );
+
+    uint64_t count = 0;
+    for ( int i = 0 ; i < N ; i++ ) {
+        printf( "Computing count for %lld\n", stones[ i ] );
+        count += countStones( stones[ i ], BLINKS );
+    }
+
+
+    printf( "%lld\n", count );
+    return 0;
+}
+
+int digits( uint64_t val );
+uint64_t pow10( int pow );
+
+uint64_t countStones( uint64_t stone, int blinks ) {
+    uint64_t count;
+    if      ( blinks == 0 ) count = 1;
+    else if ( tryGetCount( stone, blinks, &count ) ) return count;
+    else if ( stone == 0 ) count = countStones( 1, blinks - 1 );
+    else {
+        int d = digits( stone );
+        if ( d % 2 == 0 ) {
+            uint64_t mod = pow10( d / 2 );
+            uint64_t lCount = countStones( stone / mod, blinks - 1);
+            uint64_t rCount = countStones( stone % mod, blinks - 1);
+            count = lCount + rCount ;
+        }
+        else {
+           count = countStones( stone * 2024, blinks - 1 );
+        }
+    }
+    trySetCount( stone, blinks, count );
+    return count;
+}
+```
+
+and the grid based caching scheme had three functions, an init, a get and a set.  This is what the code looked like:
+
+```c
+typedef struct {
+    uint64_t *cache;
+    int S;  // Number of stones / rows
+    int B;  // Number of blinks / columns
+} Cache;
+
+Cache g_cache;
+
+void initCache( int nStones, int nBlinks ) {
+    Cache *c = &g_cache;
+    c->S = nStones;
+    c->B = nBlinks;
+    size_t size = c->S * c->B * sizeof( uint64_t);
+    c->cache = malloc( c->S * c->B * sizeof( uint64_t) );
+    memset( c->cache, 0xff, size );
+}
+
+bool tryGetCount( uint64_t stone, int blinks, uint64_t *outCount ) {
+    Cache *c = &g_cache;
+    if ( blinks >= c->B ) return false;
+    if ( stone  >= c->S ) return false;
+    size_t idx = stone * c->B + blinks;
+    if ( c->cache[ idx ] != UINT64_MAX ) {
+        *outCount = c->cache[ idx ];
+        return true;
+    }
+    return false;
+}
+
+void trySetCount( uint64_t stone, int blinks, uint64_t count ) {
+    Cache *c = &g_cache;
+    if ( blinks >= c->B ) return;
+    if ( stone  >= c->S ) return;
+    size_t idx = stone * c->B + blinks;
+    c->cache[ idx ] = count;
+}
+```
