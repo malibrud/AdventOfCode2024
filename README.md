@@ -1112,3 +1112,122 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 14](https://adventofcode.com/2024/day/14)
+
+Robots moving with modular arithmatic.  Pretty striaght forward.  Don't need to put steps in a for loop.
+I directly calculated the position after 100 steps.  Solution:
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Robot bots[ MAX_BOTS ];
+    int R;  // Number of bots
+    int X;  // Map width
+    int Y;  // Map height
+    check( tryGetRobotsFromFile( argv[ 1 ], bots, &R, &X, &Y ), "Error: Could not read bots from %s.", argv[ 1 ] );
+    int hx = X / 2;
+    int hy = Y / 2;
+
+    int qul = 0;
+    int qur = 0;
+    int qll = 0;
+    int qlr = 0;
+    for ( int r = 0 ; r < R ; r++ ) {
+        Robot b = bots[ r ];
+        int  x = b.x,   y = b.y;
+        int vx = b.vx, vy = b.vy;
+
+        #define N_STEPS 100
+        x = ( x + N_STEPS * ( vx + X ) ) % X;
+        y = ( y + N_STEPS * ( vy + Y ) ) % Y;
+        if      ( x < hx && y < hy ) qul++;
+        else if ( x > hx && y < hy ) qur++;
+        else if ( x < hx && y > hy ) qll++;
+        else if ( x > hx && y > hy ) qlr++;
+    }
+
+    int prod = qul * qur * qll * qlr;
+
+    printf( "%d\n", prod );
+    return 0;
+}
+```
+
+For part 2, we were asked to find a picture of a Christmas tree after so many seconds.  I tried a bunch
+of things, but what ended up working was to use the quadrant hint from part 1 and look for imbalances
+in the quadrant counts.  I chose the compare the max count to the min count.  Here is the solution:
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Robot bots[ MAX_BOTS ];
+    int R;  // Number of bots
+    int X;  // Map width
+    int Y;  // Map height
+    check( tryGetRobotsFromFile( argv[ 1 ], bots, &R, &X, &Y ), "Error: Could not read bots from %s.", argv[ 1 ] );
+    size_t G = X * Y * sizeof( int );
+    int *grid = malloc( G );
+
+    for ( int s = 1 ; ; s++ ) {
+        memset( grid, 0, G );
+        int hx = X / 2;
+        int hy = Y / 2;
+
+        int qul = 0;
+        int qur = 0;
+        int qll = 0;
+        int qlr = 0;
+
+        // Simulate one second for each robot and store count in the grid;
+        for ( int r = 0 ; r < R ; r++ ) {
+            Robot *b = &bots[ r ];
+            b->x = ( b->x + b->vx + X ) % X;
+            b->y = ( b->y + b->vy + Y ) % Y;
+            int idx = b->y * X + b->x;
+            grid[ idx ]++;
+            if      ( b->x < hx && b->y < hy ) qul++;
+            else if ( b->x > hx && b->y < hy ) qur++;
+            else if ( b->x < hx && b->y > hy ) qll++;
+            else if ( b->x > hx && b->y > hy ) qlr++;
+        }
+
+        int maxq = qul;
+        maxq = max( maxq, qur );
+        maxq = max( maxq, qll );
+        maxq = max( maxq, qlr );
+
+        int minq = qul;
+        minq = min( minq, qur );
+        minq = min( minq, qll );
+        minq = min( minq, qlr );
+
+        int diff = maxq - minq;
+        if ( diff > 230 ) {  // Experimentally determined.
+            for ( int x = 0 ; x < X+2 ; x++ ) putchar( '-' );
+            putchar( '\n' );
+            for ( int y = 0 ; y < Y ; y++ ) {
+                putchar( '|' );
+                for ( int x = 0 ; x < X ; x++ ) {
+                    int idx = y * X + x;
+                    if ( grid[ idx ] ) putchar( '.' );
+                    else putchar( ' ' );
+                }
+                putchar( '|' );
+                putchar( '\n' );
+            }
+            for ( int x = 0 ; x < X+2 ; x++ ) putchar( '-' );
+            putchar( '\n' );
+            printf( "%d Seconds (count = %d):\n\n", s, diff );
+            if ( 'b' == getchar() ) break;
+        }
+    }
+
+    return 0;
+}
+```
+and the picture that I found is below:
+
+![Day 14 Image](figures/day14.png)
