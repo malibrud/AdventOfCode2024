@@ -794,3 +794,202 @@ void trySetCount( uint64_t stone, int blinks, uint64_t count ) {
     c->cache[ idx ] = count;
 }
 ```
+
+## [Day 12](https://adventofcode.com/2024/day/12)
+
+Finding the area and perimeter of a connected group of letters in a grid.  For part one I chose to use a recursive approach.
+I used the 6th bit (i.e 32) to flag that a cell had been visited.  Flipping this bit changes the letter from upper case
+to lowercase, making it easy to see in a debugger.  Here is the solution.
+
+```C
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Map map;
+    check( tryGetMapFromFile( argv[ 1 ], &map ), "Error: Could not read disk map from %s.", argv[ 1 ] );
+    int X = map.X;
+    int Y = map.Y;
+
+    int total = 0;
+    for ( int y = 0 ; y < Y ; y++ )
+    for ( int x = 0 ; x < X ; x++ )
+    {
+        if ( map.map[ y ][ x ] & VISITED_BIT ) continue;
+        int perimeter = 0;
+        int area = 0;
+        getPerimeterAndArea( &map, x, y, &perimeter, &area );
+        total += perimeter * area;
+    }
+
+    printf( "%d\n", total );
+    return 0;
+}
+
+void getPerimeterAndArea( Map *map, int x, int y, int *outPerim, int *outArea ) {
+    int X = map->X;
+    int Y = map->Y;
+    char **m = map->map;
+
+    assert( 0 <= x && x < X );
+    assert( 0 <= y && y < Y );
+    assert( ( m[ y ][ x ] & VISITED_BIT)  == 0 );
+
+    char p = m[ y ][ x ] |= VISITED_BIT;
+    (*outArea)++;
+    
+    int dx = 1;
+    int dy = 0;
+
+    for ( int i = 0 ; i < 4 ; i++ ) {
+        rot90( &dx, &dy );
+        int nx = x + dx;
+        int ny = y + dy;
+        
+        // Test for edge of map both horizontal and vertical.
+        if ( nx <  0 || nx >= X || ny <  0 || ny >= Y ) {
+            (*outPerim)++;
+            continue;
+        }
+        char np = m[ ny ][ nx ];
+
+        // Test to see if the new plot has been visited.
+        if ( p == np ) continue;
+
+        // Test to see if this is the boundary of a region;
+        if ( p != ( np | VISITED_BIT ) ) {
+            (*outPerim)++;
+            continue;
+        }
+
+        // This new point is in the region, recurse.
+        getPerimeterAndArea( map, nx, ny, outPerim, outArea );
+    }
+}
+```
+
+
+Part 2 was similar, howver finding the side count was a bit challenging.  I deided on a two step process where
+the area step marked the borders, then a second step counted the sides.  I used the lower 4 bits of a character
+to mark the top, right, bottom and left edges.  Here is the solution:
+
+
+```C
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Map map;
+    check( tryGetMapFromFile( argv[ 1 ], &map ), "Error: Could not read disk map from %s.", argv[ 1 ] );
+    initPerimeterMap( &map );
+    int X = map.X;
+    int Y = map.Y;
+
+    int total = 0;
+    for ( int y = 0 ; y < Y ; y++ )
+    for ( int x = 0 ; x < X ; x++ )
+    {
+        if ( map.map[ y ][ x ] & VISITED_BIT ) continue;
+        int sides = 0;
+        int area = 0;
+        resetPerimeterMap( &map );
+        getAreaAndMarkPerimeter( &map, x, y, &area );
+        getSideCount( &map, &sides );
+        total += sides * area;
+    }
+
+    printf( "%d\n", total );
+    return 0;
+}
+
+void rot90( int *x, int *y ) { 
+    assert( *x * *y == 0 );
+    int nx = -*y;
+    int ny = +*x;
+    *x = nx;
+    *y = ny;
+}
+
+void getAreaAndMarkPerimeter( Map *map, int x, int y, int *outArea ) {
+    int X = map->X;
+    int Y = map->Y;
+    char **m = map->map;
+    uint8_t **p = map->perim;
+
+    assert( 0 <= x && x < X );
+    assert( 0 <= y && y < Y );
+    assert( ( m[ y ][ x ] & VISITED_BIT)  == 0 );
+
+    char c = m[ y ][ x ] |= VISITED_BIT;
+    (*outArea)++;
+    
+    int dx = 1;
+    int dy = 0;
+
+    for ( int i = 0 ; i < 4 ; i++ ) {
+        rot90( &dx, &dy );
+        int nx = x + dx;
+        int ny = y + dy;
+
+        char side = '\0';
+        if ( dx == -1 ) side = L_BIT;
+        if ( dx == +1 ) side = R_BIT;
+        if ( dy == -1 ) side = T_BIT;
+        if ( dy == +1 ) side = B_BIT;
+        
+        // Test for boundary edges
+        if ( nx <  0 || nx >= X || ny <  0 || ny >= Y ) { 
+            p[ y ][ x ] |= ' ' + side; 
+            continue; 
+        }
+        uint8_t np = m[ ny ][ nx ];
+
+        // Test to see if the new plot has been visited.
+        if ( c == np ) continue;
+
+        // Test to see if this is the boundary of a region;
+        if ( c != ( np | VISITED_BIT ) ) {
+            p[ y ][ x ] |= ' ' + side; 
+            continue;
+        }
+
+        // This new point is in the region, recurse.
+        getAreaAndMarkPerimeter( map, nx, ny, outArea );
+    }
+}
+
+int searchDirs[4][2] = {
+    {  0,  1 },  // Boundary on right, search down.
+    {  1,  0 },  // Boundary on bottom, search right.
+    {  0,  1 },  // Boundary on left, search down.
+    {  1,  0 },  // Boundary on top, search right.
+};
+
+void getSideCount( Map *map, int *outSides ) {
+    int X = map->X;
+    int Y = map->Y;
+    char **m = map->perim;
+
+    for ( int x = 0 ; x < X ; x++ )
+    for ( int y = 0 ; y < Y ; y++ )
+    {
+        char c = m[ y ][ x ];
+        if ( c == ' ' ) continue;
+
+        int bit = 1;
+        for ( int i = 0 ; i < 4 ; i++, bit <<= 1 ) {
+            if ( !( c & bit ) ) continue;
+            (*outSides)++;
+            int dx = searchDirs[ i ][ 0 ];
+            int dy = searchDirs[ i ][ 1 ];
+
+            int nx = x;
+            int ny = y;
+            while ( nx >= 0 && nx < X && ny >= 0 && ny < Y ) {
+                if ( ( m[ ny ][ nx ] & bit ) == 0 ) break;
+                m[ ny ][ nx ] &= ~bit;
+                nx += dx;
+                ny += dy;
+            }
+        }
+    }
+}
+```
