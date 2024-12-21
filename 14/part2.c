@@ -31,6 +31,14 @@ int main( int argc, char **argv ) {
 
     for ( int s = 1 ; ; s++ ) {
         memset( grid, 0, G );
+        int hx = X / 2;
+        int hy = Y / 2;
+
+        int qul = 0;
+        int qur = 0;
+        int qll = 0;
+        int qlr = 0;
+
         // Simulate one second for each robot and store count in the grid;
         for ( int r = 0 ; r < R ; r++ ) {
             Robot *b = &bots[ r ];
@@ -38,27 +46,39 @@ int main( int argc, char **argv ) {
             b->y = ( b->y + b->vy + Y ) % Y;
             int idx = b->y * X + b->x;
             grid[ idx ]++;
+            if      ( b->x < hx && b->y < hy ) qul++;
+            else if ( b->x > hx && b->y < hy ) qur++;
+            else if ( b->x < hx && b->y > hy ) qll++;
+            else if ( b->x > hx && b->y > hy ) qlr++;
         }
 
-        // Check for empty upper left and upper right quadrants
-        int count = 0;
-        int UB = X / 2 - 2;
-        for ( int i = 0 ; i < UB     ; i++ )
-        for ( int j = 0 ; j < UB - i ; j++ )
-        {
-            int idx = i * X + j;
-            if ( grid[ idx ] ) count++;
-        }
-        if ( count < 11 ) {
+        int maxq = qul;
+        maxq = max( maxq, qur );
+        maxq = max( maxq, qll );
+        maxq = max( maxq, qlr );
+
+        int minq = qul;
+        minq = min( minq, qur );
+        minq = min( minq, qll );
+        minq = min( minq, qlr );
+
+        int diff = maxq - minq;
+        if ( diff > 230 ) {  // Experimentally determined.
+            for ( int x = 0 ; x < X+2 ; x++ ) putchar( '-' );
+            putchar( '\n' );
             for ( int y = 0 ; y < Y ; y++ ) {
+                putchar( '|' );
                 for ( int x = 0 ; x < X ; x++ ) {
                     int idx = y * X + x;
                     if ( grid[ idx ] ) putchar( '.' );
                     else putchar( ' ' );
                 }
+                putchar( '|' );
                 putchar( '\n' );
             }
-            printf( "%d Seconds (count = %d):\n\n", s, count );
+            for ( int x = 0 ; x < X+2 ; x++ ) putchar( '-' );
+            putchar( '\n' );
+            printf( "%d Seconds (count = %d):\n\n", s, diff );
             if ( 'b' == getchar() ) break;
         }
     }
