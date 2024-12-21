@@ -993,3 +993,122 @@ void getSideCount( Map *map, int *outSides ) {
     }
 }
 ```
+
+## [Day 13](https://adventofcode.com/2024/day/13)
+
+This was basically to solve a system of equations with integers.  Part 1 was addressable with a namual search
+through all possible cases.  Note that since the system was full rank, a search was not necessary, but it 
+worked just fine.  Here is the part 1 solution.
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Machine machines[ MAX_MACHINES ];
+    int M;
+    check( tryGetMachinesFromFile( argv[ 1 ], machines, &M ), "Error: Could not read equations from %s.", argv[ 1 ] );
+
+    uint64_t sum = 0;
+    for ( int m = 0 ; m < M ; m++ ) {
+        Machine *ma = machines + m;
+        for ( int a = 0 ; a * ma->ax <= ma->px ; a++ ) {
+            int ax = ma->ax;
+            int ay = ma->ay;
+            int bx = ma->bx;
+            int by = ma->by;
+            int px = ma->px;
+            int py = ma->py;
+
+            if ( 
+                ( px - a * ax ) % bx == 0 &&
+                ( py - a * ay ) % by == 0
+            ) {
+                int b = ( px - a * ax ) / bx;
+                if ( a * ay + b * by == py ) {
+                    sum += 3 * a + b;
+                    break;
+                }
+            }
+        }
+    }
+
+    printf( "%lld\n", sum );
+    return 0;
+}
+```
+
+For part 2 the search space greatly expanded to the order fo 10 trillion as the solution.  The brute force
+method took way too long.  Since it is a system of equations, I converted everything to [double precision](https://en.wikipedia.org/wiki/IEEE_754)
+which can hold 15.9 decimal digits (a quadrillion).  I then used [Gaussian Elimination](https://en.wikipedia.org/wiki/Gaussian_elimination) to solve for the number of button presses.  Before using the solution
+I checked two things: (1) that the solutions were positive and (2) that the nearest integer solution still
+solved the problem.  Here is the solution:
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Machine machines[ MAX_MACHINES ];
+    int M;
+    check( tryGetMachinesFromFile( argv[ 1 ], machines, &M ), "Error: Could not read equations from %s.", argv[ 1 ] );
+
+    uint64_t sum = 0;
+    for ( int m = 0 ; m < M ; m++ ) {
+        Machine *ma = machines + m;
+        assert ( ma->ax * ma->by - ma->ay * ma->bx != 0 ); // If determinent is 0, this approach will not work.
+
+        int ax = ma->ax;
+        int ay = ma->ay;
+        int bx = ma->bx;
+        int by = ma->by;
+        int64_t px = ma->px + 10000000000000LL;
+        int64_t py = ma->py + 10000000000000LL;
+
+        // Cast the problem as a system of equations.
+        //   A * x = b
+        //
+        //   A = [ a11 a12 ] = [ ax ax ]
+        //       [ a21 a22 ]   [ ay ay ]
+        //
+        //   b = [ b1 b2 ]^T = [ px py ]^T
+        //
+        double a11 = ax;
+        double a12 = bx;
+        double a21 = ay;
+        double a22 = by;
+        double b1 = (double)px;
+        double b2 = (double)py;
+        double x1, x2;
+
+        // Solve by Gaussian elimination
+        // Subtract portion of first row from second row to zero out a21.
+
+        // Reduce to Row Echelon Form (REF)
+        double f = a21 / a11;
+        a21 -= f * a11;
+        a22 -= f * a12;
+        b2  -= f * b1;
+
+        // Now solve: a22 * x2 = b2
+        x2 = b2 / a22;
+
+        // Now solve: a11 * x1 + a12 * x2 = b1
+        x1 = ( b1 - a12 * x2 ) / a11;
+
+        // Check our solution with constraints
+        if ( x1 < 0 || x2 < 0 ) continue;
+
+        // Convert to closest integer solution and check 
+        int64_t a = (int64_t)round( x1 );
+        int64_t b = (int64_t)round( x2 );
+        if (
+            a * ax + b * bx == px &&
+            a * ay + b * by == py
+        ) {
+            sum += 3 * a + b;
+        }
+    }
+
+    printf( "%lld\n", sum );
+    return 0;
+}
+```
