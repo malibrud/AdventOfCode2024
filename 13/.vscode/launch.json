@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/part1.exe",
-            "args": [ "data.txt" ],
+            "args": [ "text.txt" ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
