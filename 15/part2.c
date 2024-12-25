@@ -22,6 +22,61 @@ typedef struct {
 
 void check( bool success, char *format, ... );
 bool tryGetDataFromFile( char *inFileName, Warehouse *outWarehouse );
+void pushBoxHoriz( Warehouse *wh, int dx );
+bool canPushBoxVert( Warehouse *wh, int x, int y, int dy );
+void moveBoxVert( Warehouse *wh, int x, int y, int dy );
+void pushBoxVert( Warehouse *wh, int dy );
+
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Warehouse wh;
+    check( tryGetDataFromFile( argv[ 1 ], &wh ), "Error: Could not read data from %s.", argv[ 1 ] );
+     char **map = wh.map;
+
+    for ( int m = 0 ; m < wh.M ; m++ ) {
+        char move = wh.moves[ m ];
+        if ( move <= ' ' ) continue;
+
+        int dx = 0, dy = 0;
+        if      ( move == '<' ) dx = -1;
+        else if ( move == '>' ) dx = +1;
+        else if ( move == '^' ) dy = -1;
+        else if ( move == 'v' ) dy = +1;
+
+        int nx = wh.x + dx;
+        int ny = wh.y + dy;
+        char nc = map[ ny ][ nx ];
+        if ( nc == '#' ) {
+            // There is a wall in front of us.  Don't move.
+        } else
+        if ( nc == '.' ) {
+            // There is room, move to next position.
+            map[ wh.y ][ wh.x ] = '.';
+            map[ ny ][ nx ]     = '@';
+            wh.x = nx;
+            wh.y = ny;
+        } else
+        if ( nc == '[' || nc == ']' ) {
+            // There is a box in front of us, push the box if possible.
+            if ( dx != 0 ) pushBoxHoriz( &wh, dx );
+            else           pushBoxVert(  &wh, dy );
+        }
+
+        // printf( "After %d: %c\n%s\n", m, move, wh.mapStr );
+    }
+
+    // Score the final positions of the boxes
+    int sum = 0;
+    for ( int y = 0 ; y < wh.Y ; y++ )
+    for ( int x = 0 ; x < wh.X ; x++ )
+    {
+        if ( map[ y ][ x ] == '[' ) sum += 100*y + x;
+    }
+
+    printf( "%d\n", sum );
+    return 0;
+}
 
 void pushBoxHoriz( Warehouse *wh, int dx ) {
     int X = wh->X;
@@ -126,57 +181,6 @@ void pushBoxVert( Warehouse *wh, int dy ) {
     }
 }
 
-int main( int argc, char **argv ) {
-    check( argc >= 2, "Usage: %s filename", argv[0] );
-
-    Warehouse wh;
-    check( tryGetDataFromFile( argv[ 1 ], &wh ), "Error: Could not read data from %s.", argv[ 1 ] );
-     char **map = wh.map;
-
-    for ( int m = 0 ; m < wh.M ; m++ ) {
-        char move = wh.moves[ m ];
-        if ( move <= ' ' ) continue;
-
-        int dx = 0, dy = 0;
-        if      ( move == '<' ) dx = -1;
-        else if ( move == '>' ) dx = +1;
-        else if ( move == '^' ) dy = -1;
-        else if ( move == 'v' ) dy = +1;
-
-        int nx = wh.x + dx;
-        int ny = wh.y + dy;
-        char nc = map[ ny ][ nx ];
-        if ( nc == '#' ) {
-            // There is a wall in front of us.  Don't move.
-        } else
-        if ( nc == '.' ) {
-            // There is room, move to next position.
-            map[ wh.y ][ wh.x ] = '.';
-            map[ ny ][ nx ]     = '@';
-            wh.x = nx;
-            wh.y = ny;
-        } else
-        if ( nc == '[' || nc == ']' ) {
-            // There is a box in front of us, push the box if possible.
-            if ( dx != 0 ) pushBoxHoriz( &wh, dx );
-            else           pushBoxVert(  &wh, dy );
-        }
-
-        // printf( "After %d: %c\n%s\n", m, move, wh.mapStr );
-    }
-
-    // Score the final positions of the boxes
-    int sum = 0;
-    for ( int y = 0 ; y < wh.Y ; y++ )
-    for ( int x = 0 ; x < wh.X ; x++ )
-    {
-        if ( map[ y ][ x ] == '[' ) sum += 100*y + x;
-    }
-
-    printf( "%d\n", sum );
-    return 0;
-}
-
 bool tryGetDataFromFile( char *inFileName, Warehouse *outWarehouse ) {
     FILE *f = fopen( inFileName, "rb" );
     if ( f == NULL ) return false;
@@ -238,7 +242,7 @@ bool tryGetDataFromFile( char *inFileName, Warehouse *outWarehouse ) {
     }
     mapMem[ Y * dstride ] = 0;
 
-    // printf( "%s\n", mapMem );
+    printf( "%s\n", mapMem );
 
     // Populate the output structure
     Warehouse *wh = outWarehouse;
