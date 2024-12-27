@@ -18,10 +18,10 @@ typedef struct {
     uint8_t ex, ey;  // Location of the end.
 } Maze;
 
-#define DIR_E ( (uint8_t)0x0 );
-#define DIR_S ( (uint8_t)0x1 );
-#define DIR_W ( (uint8_t)0x2 );
-#define DIR_N ( (uint8_t)0x3 );
+#define DIR_E ( (uint8_t)0x0 )
+#define DIR_S ( (uint8_t)0x1 )
+#define DIR_W ( (uint8_t)0x2 )
+#define DIR_N ( (uint8_t)0x3 )
 
 int dirs[4][2] = {
     {  1,  0 },
@@ -35,41 +35,41 @@ typedef struct {
     uint8_t x;
     uint8_t y;
     uint8_t dir;
+    char type;
 } Node;
 
 // Priority queue for 'Node' elements ordered by 'score' with the min at the top.
 // Inspired by: https://www.geeksforgeeks.org/c-program-to-implement-priority-queue/
 typedef struct {
-    Node *nodes;
+    Node **nodes;
     int   count;
     int   max;
 } Queue;
 
 void qInit( Queue *q, int X, int Y ) {
-    assert( sizeof( Node ) == sizeof( uint64_t ) );
     q->max = X * Y * 4;
-    q->nodes = malloc( q->max * sizeof( Node ) );
+    q->nodes = malloc( q->max * sizeof( Node* ) );
     q->count = 0;
 }
 
 bool qIsEmpty( Queue *q ) { return q->count == 0; }
 
 void qSwap( Queue *q, int ia, int ib ) {
-    Node *nodes = q->nodes;
-    Node t = nodes[ ia ];
+    Node **nodes = q->nodes;
+    Node *t = nodes[ ia ];
     nodes[ ia ] = nodes[ ib ];
     nodes[ ib ] = t;
 }
 
 bool qLt( Queue *q, int ia, int ib ) {
-    return q->nodes[ ia ].score < q->nodes[ ib ].score;
+    return q->nodes[ ia ]->score < q->nodes[ ib ]->score;
 }
 
 bool qGt( Queue *q, int ia, int ib ) {
-    return q->nodes[ ia ].score > q->nodes[ ib ].score;
+    return q->nodes[ ia ]->score > q->nodes[ ib ]->score;
 }
 
-void qAppend( Queue *q, Node n ) {
+void qAppend( Queue *q, Node *n ) {
     q->nodes[ q->count++ ] = n;
 }
 
@@ -89,14 +89,9 @@ bool qIsValid( Queue *q ) {
     return true;
 }
 
-bool qFind( Queue *q, Node n, int *outIdx ) {
+bool qFind( Queue *q, Node *n, int *outIdx ) {
     for ( int i = 0 ; i < q->count ; i++ ) {
-        Node tn = q->nodes[ i ];
-        if ( 
-            tn.x   == n.x && 
-            tn.y   == n.y &&
-            tn.dir == n.dir
-        ) {
+        if ( n == q->nodes[ i ] ) {
             *outIdx = i;
             return true;
         }
@@ -113,7 +108,7 @@ void qHeapUp( Queue *q, int idx ) {
     }
 }
 
-void qEnqueue( Queue *q, Node n ) {
+void qEnqueue( Queue *q, Node *n ) {
     assert( q->count < q->max );
     q->nodes[ q->count++ ] = n;
     qHeapUp( q, q->count - 1);
@@ -122,7 +117,7 @@ void qEnqueue( Queue *q, Node n ) {
 void qHeapDown( Queue *q, int idx ) {
     int sm = idx;
     int il = 2*idx + 1;
-    int ir = 2*idx + 1;
+    int ir = 2*idx + 2;
     if ( il < q->count && qLt( q, il, sm ) ) sm = il;
     if ( ir < q->count && qLt( q, ir, sm ) ) sm = ir;
     if ( sm != idx ) {
@@ -131,10 +126,10 @@ void qHeapDown( Queue *q, int idx ) {
     }
 }
 
-Node qDequeue( Queue *q ) {
+Node *qDequeue( Queue *q ) {
     assert( q->count > 0 );
-    Node *nodes = q->nodes;
-    Node item = nodes[ 0 ];
+    Node **nodes = q->nodes;
+    Node *item = nodes[ 0 ];
     nodes[ 0 ] = nodes[ --q->count ];
     qHeapDown( q, 0 );
     return item;
@@ -145,7 +140,7 @@ void qUpdateScore( Queue *q, int idx, uint32_t score ) {
     int il = 2*idx + 1;
     int ir = 2*idx + 2;
 
-    q->nodes[ idx ].score = score;
+    q->nodes[ idx ]->score = score;
     if      (                  qLt( q, idx, ip ) ) qHeapUp( q, idx );
     else if ( il < q->count && qGt( q, idx, il ) ) qHeapDown( q, idx );
     else if ( ir < q->count && qGt( q, idx, ir ) ) qHeapDown( q, idx );
@@ -160,66 +155,66 @@ int main( int argc, char **argv ) {
     Maze mz;
     check( tryGetDataFromFile( argv[ 1 ], &mz ), "Error: Could not read data from %s.", argv[ 1 ] );
     char **grid = mz.grid;
+    int X = mz.X;
+    int Y = mz.Y;
+    int D = 4;
 
-    // Initialize the priority queue.
+    // Create scrore grid and initialize the priority queue.
     Queue q;
     qInit( &q, mz.X, mz.Y );
-    qAppend( &q, (Node){ 0,          mz.sx, mz.sy, 0 } );
-    qAppend( &q, (Node){ UINT32_MAX, mz.ex, mz.ey, 0 } );
-    for ( uint8_t y = 0 ; y < mz.Y ; y++ )
-    for ( uint8_t x = 0 ; x < mz.X ; x++ )
+    Node *nodes = malloc( mz.X * mz.Y * 4 * sizeof( Node ) );
+    for ( uint8_t y = 0 ; y < Y ; y++ )
+    for ( uint8_t x = 0 ; x < X ; x++ )
+    for ( uint8_t d = 0 ; d < D ; d++ )
     {
-        if ( grid[y][x] == '.' ) {
-            for ( uint8_t i = 0 ; i < 4 ; i++ ) qAppend( &q, (Node){ UINT32_MAX, x, y, i } );
+        int idx = y*(D*X) + x*D + d;
+        nodes[ idx ] = (Node){ UINT32_MAX, x, y, d, grid[y][x] };
+        if ( x == mz.sx && y == mz.sy && d == DIR_E ) {
+            nodes[ idx ].score = 0;
         }
+        if ( grid[ y ][ x ] != '#') qEnqueue( &q, &nodes[ idx ] );
     }
     assert( qIsValid( &q ) );
 
     uint32_t finalScore = 0;
     while ( !qIsEmpty( &q ) ) {
-        Node n = qDequeue( &q );
-        uint8_t nx = (uint8_t)(n.x + dirs[n.dir][0] );
-        uint8_t ny = (uint8_t)(n.y + dirs[n.dir][1] );
+        Node *n = qDequeue( &q );
+        uint8_t nx = (uint8_t)(n->x + dirs[n->dir][0] );
+        uint8_t ny = (uint8_t)(n->y + dirs[n->dir][1] );
 
-        printf( "Trying: (%d, %d, %d) = %d\n", n.x, n.y, n.dir, n.score );
-        for ( int i = 0 ; i < q.count ; i++ ){
-            Node v = q.nodes[i];
-            if ( v.score == UINT32_MAX ) break;
-            printf( "    %d: (%d, %d, %d) = %d\n", i, v.x, v.y, v.dir, v.score );
-
-        }
+        //printf( "Trying: (%d, %d, %d) = %d\n", n->x, n->y, n->dir, n->score );
 
         // Are we done?
         if ( nx == mz.ex && ny == mz.ey ) {
-            finalScore = n.score + 1;
+            finalScore = n->score + 1;
             break;
         }
 
         // Find the next node;
-        Node next = { 0, nx, ny, n.dir };
+        Node *next = &nodes[ ny*X*D + nx*D + n->dir ];
         int nIdx;
         if ( qFind( &q, next, &nIdx ) ) {
-            next = q.nodes[ nIdx ];
-            uint32_t score = n.score + 1;
-            if ( score < next.score ) qUpdateScore( &q, nIdx, score );
+            uint32_t score = n->score + 1;
+            if ( score < next->score ) qUpdateScore( &q, nIdx, score );
+            assert( qIsValid( &q ) );
         }
 
         // Try turning right, CW
-        uint8_t dir = ( n.dir + 1 ) % 4;
-        next = (Node){ 0, n.x, n.y, dir };
+        uint8_t dir = ( n->dir + 1 ) % 4;
+        next = &nodes[ n->y*X*D + n->x*D + dir ];
         if ( qFind( &q, next, &nIdx ) ) {
-            next = q.nodes[ nIdx ];
-            uint32_t score = n.score + 1000;
-            if ( score < next.score ) qUpdateScore( &q, nIdx, score );
+            uint32_t score = n->score + 1000;
+            if ( score < next->score ) qUpdateScore( &q, nIdx, score );
+            assert( qIsValid( &q ) );
         }
 
         // Try turning left, CCW
-        dir = ( n.dir + 3 ) % 4;
-        next = (Node){ 0, n.x, n.y, dir };
+        dir = ( n->dir + 3 ) % 4;
+        next = &nodes[ n->y*X*D + n->x*D + dir ];
         if ( qFind( &q, next, &nIdx ) ) {
-            next = q.nodes[ nIdx ];
-            uint32_t score = n.score + 1000;
-            if ( score < next.score ) qUpdateScore( &q, nIdx, score );
+            uint32_t score = n->score + 1000;
+            if ( score < next->score ) qUpdateScore( &q, nIdx, score );
+            assert( qIsValid( &q ) );
         }
     }
 
