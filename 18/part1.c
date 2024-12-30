@@ -205,6 +205,7 @@ int main( int argc, char **argv ) {
             // Are we hitting a barrier?
             if ( b.grid[ ny ][ nx ] == '#' ) continue;
 
+            // Determine score for successor and update/add to the open set.
             Node *s = &nGrid[ ny ][ nx ];
             uint32_t g = q->g + 1;
             uint32_t h = abs( nx - ( X - 1 ) ) + abs( ny - ( Y - 1 ) );
