@@ -1,0 +1,8 @@
+2,4  BST: B = A % 8
+1,1  BXL: B = B ^ 1
+7,5  CDV: C = A / ( 1 << B )
+4,0  BXC: B = B ^ C
+0,3  ADV: A = A >> 3
+1,6  BXL: B = B ^ 6
+5,5  OUT: B --> out
+3,0  JNZ: if ( A != 0 ) goto 0
