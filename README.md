@@ -1736,3 +1736,175 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 17](https://adventofcode.com/2024/day/17)
+
+Challenge was to build and run a virtual machine.  My implementation of the virtual machine is as follows:
+
+```c
+#define MAX_PROGRAM 20
+#define MAX_OUTPUT 20
+typedef struct {
+    uint64_t PC;
+    uint64_t A, B, C; // Registers
+    uint64_t program[ MAX_PROGRAM ];
+    int P; // Program length
+    uint64_t output[ MAX_OUTPUT ];
+    int U; // Output length
+} Computer;
+
+uint64_t combo( Computer *c, uint64_t arg ) {
+    switch ( arg ) 
+    {
+    case 0: return arg;
+    case 1: return arg;
+    case 2: return arg;
+    case 3: return arg;
+    case 4: return c->A;
+    case 5: return c->B;
+    case 6: return c->C;
+    case 7: assert( false );
+    default: assert( false );
+    }
+    return 0;
+}
+
+void reset( Computer *c, uint64_t A, uint64_t B, uint64_t C ) {
+    c->PC = 0;
+    c->A = A;
+    c->B = B;
+    c->C = C;
+    c->U = 0;
+}
+
+void step( Computer *c ) {
+
+    uint64_t op  = c->program[ c->PC++ ];
+    uint64_t arg = c->program[ c->PC++ ];
+
+    switch ( op )
+    {
+    case 0: // adv
+        arg = combo( c, arg );
+        c->A /= ( 1ull << arg );
+        break;
+    case 1: // bxl
+        c->B ^= arg;
+        break;
+    case 2: // bst
+        arg = combo( c, arg );
+        c->B = arg % 8;
+        break;
+    case 3: // jnz
+        if ( c->A != 0ull ) c->PC = arg;
+        break;
+    case 4: // bxc
+        c->B ^= c->C;
+        break;
+    case 5: // out
+        assert( c->U < MAX_OUTPUT );
+        arg = combo( c, arg );
+        c->output[ c->U++ ] = arg % 8;
+        break;
+    case 6: // bdv
+        arg = combo( c, arg );
+        c->B = c->A / ( 1ull << arg );
+        break;
+    case 7: // cdv
+        arg = combo( c, arg );
+        c->C = c->A / ( 1ull << arg );
+        break;
+    default:
+        assert( false );
+        break;
+    }
+}
+
+void run( Computer *c ) {
+    while ( c->PC < c->P ) {
+        step( c );
+    }
+}
+
+void print( Computer *c ) {
+    printf( "PC: %llu, A: %9llu, B: %9llu, C: %9llu OUT: ", 
+            c->PC,  c->A,   c->B,   c->C 
+    );
+    for ( int i = 0 ; i < c->U ; i++ ) printf( "%llu,", c->output[ i ] );
+    printf( "\n" );
+}
+```
+
+For part 1, the task was just to run the program and report the output.  Easy enough.  Part 2 was
+to find the value of register A to preset it to in order to have the output equal the program.
+Given that the final answer was `247839653009594` i.e. 247 trillion, I had to find a more efficient
+way to find this value by means other than brute force.  To do this I followed on-line advice to decompile the 
+program.  So the original program was as follows:
+
+```
+Register A: 30899381
+Register B: 0
+Register C: 0
+
+Program: 2,4,1,1,7,5,4,0,0,3,1,6,5,5,3,1
+```
+Which i translated into the following machine instructions as `c` equivalents as follows:
+
+```
+2,4  BST: B = A % 8
+1,1  BXL: B = B ^ 1
+7,5  CDV: C = A / ( 1 << B )
+4,0  BXC: B = B ^ C
+0,3  ADV: A = A >> 3
+1,6  BXL: B = B ^ 6
+5,5  OUT: B --> out
+3,0  JNZ: if ( A != 0 ) goto 0
+```
+
+after studying the program it is clear that the initial value in `A` is consumed three bits (or one octal digit)
+at a time and then used to generate the output.  In the fourth instruction, higher bits of `A` are 
+mixed into the result so that higher order bits affect lower order bits, but not the other way around.
+This meants two things, (1) the digits could/should be found from the high digit and proceed down to lower digits
+ and (2) that it may be necessary to back track if a specific digit could not be found.  I hardcoded 
+ a back track of 2 and that seemed sufficient.  The solution to part 2 is as followsL
+
+ ```c
+ int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Computer c = {};
+    check( tryGetDataFromFile( argv[ 1 ], &c ), "Error: Could not read data from %s.", argv[ 1 ] );
+    uint64_t iB = c.B;
+    uint64_t iC = c.C;
+
+    uint64_t A = 7ull << 3*(c.P-1 );
+    uint64_t digitMask = 7ull;
+    for ( int d = c.P-1 ; d >= 0 ; d-- ) {
+        uint64_t base = ( A >> 3*d ) & digitMask;
+        for ( int v = 0 ; v < 8 ; v++ ) {
+            uint64_t place = ( base + v ) % 8;
+            A = A & ~(digitMask << 3*d) | place << 3*d;
+            reset( &c, A, iB, iC );
+            run( &c );
+            if ( c.output[ d ] == c.program[ d ] ) {
+                printf( "A0: %llu, ", A );
+                print( &c );
+                goto DIGIT_FOUND;
+            }
+        }
+        d += 2; // backtrack because a match was not found.
+        uint64_t place  = ( A >> 3*d ) & digitMask;
+        place++;
+        A = A & ~(digitMask << 3*d) | place << 3*d;
+        DIGIT_FOUND:
+        ;
+    }
+    printf( "%llu\n", A );
+    return 0;
+}
+```
+
+Because everything is in octal bit manipulations were necessary to extract the digits.  Note that this 
+solution is not general and will not work in general.  It is specifically tuned to solve my problem.  It wont
+even solve the test example.
+
