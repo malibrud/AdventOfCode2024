@@ -2035,3 +2035,85 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 19](https://adventofcode.com/2024/day/19)
+
+This was a combinatorical problem where a set of _patterns_ were supposed to compose a set of _designs_.
+Part 1 was to see if this was possible for each design.  It was just a recursive search which was not 
+all that challenging.  The second part was to count the total number of combinations of patterns into 
+designs.  Needless to say the brute force approach took way too long, so I implemented a cache to
+store previously found results.  The solution to part 2 is found below:
+
+```c
+int C; // size of the cache.
+int64_t *cache;
+char *cacheBase;
+void cacheInit( Towels *t ) {
+    int maxLen = 0;
+    for ( int i = 0 ; i < t->D ; i++ ) {
+        maxLen = max( maxLen, (int)strlen( t->designs[ i ] ) );
+    }
+    C = maxLen;
+    cache = malloc( C * sizeof( int64_t ) );
+}
+
+void cacheReset( char *base ) {
+    cacheBase = base;
+    for ( int i = 0 ; i < C ; i++ ) {
+        cache[ i ] = -1;
+    }
+}
+
+bool cacheTryLookup( char *str, int64_t *outVal ) {
+    int idx = (int) ( str - cacheBase);
+    if ( cache[ idx ] >= 0 ) {
+        *outVal = cache[ idx ];
+        return true;
+    }
+    return false;
+}
+
+void cacheUpdate( char *str, int64_t val ) {
+    int idx = (int) ( str - cacheBase);
+    assert( cache[ idx ] == -1 );
+    cache[ idx ] = val;
+}
+
+int64_t matchFound( Towels *t, char* des ) {
+    // See if value is in the cache.
+    int64_t count = 0;
+    if ( cacheTryLookup( des, &count ) ) return count;
+
+    // Do the search.
+    int dlen = (int)strlen( des );
+    for ( int i = 0 ; i < t->P ; i++ ) {
+        int plen = t->patLens[ i ];
+        if ( 0 == strncmp( des, t->patterns[ i ], plen ) ) {
+            if ( dlen == plen ) count++;
+            else count += matchFound( t, des + plen );
+        }
+    }
+    cacheUpdate( des, count );
+    return count;
+}
+
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Towels t = {};
+    check( tryGetDataFromFile( argv[ 1 ], &t ), "Error: Could not read data from %s.", argv[ 1 ] );
+
+    cacheInit( &t );
+    int64_t total = 0;
+    for ( int d = 0 ; d < t.D ; d++ ) {
+        cacheReset( t.designs[ d ] );
+        int64_t count = matchFound( &t, t.designs[ d ] );
+        printf( "%s --> %lld\n", t.designs[ d ], count );
+        total += count;
+    }
+
+    printf( "%lld\n", total );
+
+    return 0;
+}
+```
