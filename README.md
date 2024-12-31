@@ -1908,3 +1908,130 @@ Because everything is in octal bit manipulations were necessary to extract the d
 solution is not general and will not work in general.  It is specifically tuned to solve my problem.  It wont
 even solve the test example.
 
+## [Day 18](https://adventofcode.com/2024/day/18)
+
+This was another path finding problem.  For part 1 I used the code for the priority queue from Day 16
+and I added the additional feature of an [A* Search Algorithm](https://en.wikipedia.org/wiki/A*_search_algorithm).  The code is basically the same but the gist of the solution is shown below:
+
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Bytes b = {};
+    check( tryGetDataFromFile( argv[ 1 ], &b ), "Error: Could not read data from %s.", argv[ 1 ] );
+    int X = b.X;
+    int Y = b.Y;
+
+    Queue open, closed;
+    qInit( &open,   X*Y );
+    qInit( &closed, X*Y );
+
+    Node *flatNodes = malloc( sizeof( Node ) * X * Y );
+    Node **nGrid = malloc( sizeof( Node* ) * Y );
+    for ( int i = 0 ; i < Y ; i++ ) nGrid[ i ] = flatNodes + X*i;
+    for ( uint8_t y = 0 ; y < Y ; y++ )
+    for ( uint8_t x = 0 ; x < X ; x++ )
+    {
+        Node *n = &nGrid[ y ][ x ];
+        n->g = UINT32_MAX;
+        n->h = UINT32_MAX;
+        n->f = UINT32_MAX;
+        n->x = x;
+        n->y = y;
+    }
+
+    // Initialize the starting node
+    nGrid[ 0 ][ 0 ].g = 0;
+    nGrid[ 0 ][ 0 ].h = X + Y - 2;
+    nGrid[ 0 ][ 0 ].f = X + Y - 2;
+    qAppend( &open, &nGrid[0][0] );
+
+    // Do the A* algorithm to find the end.
+    int steps = 0;
+    while( !qIsEmpty( &open ) ) {
+        Node *q = qDequeue( &open );
+
+        for ( int d = 0 ; d < 4 ; d++ ) {
+            int nx = q->x + dirs[ d ][ 0 ];
+            int ny = q->y + dirs[ d ][ 1 ];
+
+            // Don't fall off of the grid.
+            if ( nx < 0 || nx >= X ) continue;
+            if ( ny < 0 || ny >= Y ) continue;
+
+            // Are we at the destination?
+            if ( nx == b.X-1 && ny == b.Y-1 ) {
+                steps = q->g + 1;
+                goto DONE;
+            }
+
+            // Are we hitting a barrier?
+            if ( b.grid[ ny ][ nx ] == '#' ) continue;
+
+            // Determine score for successor and update/add to the open set.
+            Node *s = &nGrid[ ny ][ nx ];
+            uint32_t g = q->g + 1;
+            uint32_t h = abs( nx - ( X - 1 ) ) + abs( ny - ( Y - 1 ) );
+            uint32_t f = g + h;
+
+            if ( g < s->g ) {
+                s->f = f;
+                s->g = g;
+                s->h = h;
+                int idx;
+                if ( qFind( &open, s, &idx ) ) {
+                    qUpdate( &open, idx );
+                }
+                else {
+                    qEnqueue( &open, s );
+                }
+            }
+        }
+    }
+    DONE:
+    printf( "%d\n", steps );
+
+    return 0;
+}
+```
+
+For part 2, I had to determine the particular obstacle which blocked the path to the end.  For this
+I factored out the A* algorithm and then implemented a binary search.  The algorithm is as follows:
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Bytes b = {};
+    check( tryGetDataFromFile( argv[ 1 ], &b ), "Error: Could not read data from %s.", argv[ 1 ] );
+    int X = b.X;
+    int Y = b.Y;
+
+    Queue open;
+    qInit( &open, X*Y );
+
+    Node *flatNodes = malloc( sizeof( Node ) * X * Y );
+    Node **nGrid = malloc( sizeof( Node* ) * Y );
+    for ( int i = 0 ; i < Y ; i++ ) nGrid[ i ] = flatNodes + X*i;
+
+    // Parameters for the binary search.
+    int lb = b.Nu;
+    int ub = b.N;
+
+    int lowestNotFound = 0;
+    while ( lb < ub - 1 ) {
+        b.Nu = ( lb + ub ) / 2;
+        if ( tryAStar( &b, nGrid, &open ) ) lb = b.Nu;
+        else {
+            ub = b.Nu;
+            lowestNotFound = ub;
+        }
+    }
+
+    int x = b.x[ lowestNotFound - 1 ];
+    int y = b.y[ lowestNotFound - 1 ];
+    printf( "%d,%d\n", x, y );
+    return 0;
+}
+```
