@@ -2117,3 +2117,77 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 20](https://adventofcode.com/2024/day/20)
+
+Another maze navigation puzzle.  This time one _cheat_ is allowed, for part 1 the cheat distance is fixed at 2, and for part 2 it can be up to a distance of 20.  Since part 2 is more general than part 1, the 
+part 2 solution is only shown here.  For part 2 I used a more general approach where I chose all
+possible combinations of path points to see if a cheat was allowed ( i.e. Manhattan distance <= 20).
+Here is the solution:
+
+```c
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Racetrack r = {};
+    check( tryGetDataFromFile( argv[ 1 ], &r ), "Error: Could not read data from %s.", argv[ 1 ] );
+    char **grid = r.grid;
+    int X = r.X;
+    int Y = r.Y;
+
+    // allocate space to remember path and scores.
+    int **pSec = allocIntArray( X, Y );
+    int maxPsec = X*Y;
+    int *xp = malloc( maxPsec * sizeof( int ) );
+    int *yp = malloc( maxPsec * sizeof( int ) );
+
+    // Walk the path.
+    xp[0] = r.sx;
+    yp[0] = r.sy;
+    int P = 0; // Count of coordinates in the path.
+    while( true ) {
+        for ( int d = 0 ; d < 4 ; d++ ) {
+            int nx = xp[P] + dirs[ d ][ 0 ];
+            int ny = yp[P] + dirs[ d ][ 1 ];
+            if ( grid[ ny ][ nx ] == '#' ) continue;
+            if ( grid[ ny ][ nx ] == 'S' ) continue;
+            if ( pSec[ ny ][ nx ] ) continue;
+            assert( pSec[ ny ][ nx ] == 0 );
+            pSec[ ny ][ nx ] = pSec[ yp[P] ][ xp[P] ] + 1;
+            P++;
+            xp[P] = nx;
+            yp[P] = ny;
+            break;
+        }
+        // Check to see if we are at the end;
+        if ( xp[P] == r.ex && yp[P] == r.ey ) {
+            P++;
+            break;
+        }
+    }
+
+    // Find cheats
+    int count = 0;
+    for ( int i = 0   ; i < P ; i++ )
+    for ( int j = i+1 ; j < P ; j++ )
+    {
+        int x1   = xp[ i ];
+        int y1   = yp[ i ];
+        int x2   = xp[ j ];
+        int y2   = yp[ j ];
+        int cheatDist = abs( x2 - x1 ) + abs( y2 - y1 );
+        if ( cheatDist > 20 ) continue;
+        int p1 = pSec[ y1 ][ x1 ];
+        int p2 = pSec[ y2 ][ x2 ];
+        int diff = p2 - p1;
+        int savedDist = diff - cheatDist;
+        if ( savedDist >= r.minSave ) {
+            count++;
+        }
+    }
+
+    printf( "%d\n", count );
+
+    return 0;
+}
+```
