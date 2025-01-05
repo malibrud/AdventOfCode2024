@@ -2198,7 +2198,7 @@ int main( int argc, char **argv ) {
 
 [Part 2 Solution](https://github.com/malibrud/AdventOfCode2024/blob/master/21/part2.c)
 
-Whew!  This was a mind bender.  Have a robot control a robot control a robot to punch in a correct code.
+Whew!  This was a mind bender.  Have a robot control a robot ... control a robot to punch in a correct code.
 Part 1 was done by building up the sequences and was pretty fun.  I struggled with the _optimization_ and
 avoiding the _blank_ key and evenutally found [this post](https://www.reddit.com/r/adventofcode/comments/1hjgyps/2024_day_21_part_2_i_got_greedyish/).  For both solutions I chose not to use the ASCII characters
 to store the sequences, but instead chose to store them in a tightly packed array as follows:
