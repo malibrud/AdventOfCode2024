@@ -140,7 +140,7 @@ void encodeDirSequence( int8_t *inSeq, int inS, int8_t *outSeq, int *outS ) {
             for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
         }
         outSeq[ S++ ] = DIR_A;
-        printSequence( outSeq, S );
+        // printSequence( outSeq, S );
         x = nx;
         y = ny;
     }
