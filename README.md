@@ -2191,3 +2191,277 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 21](https://adventofcode.com/2024/day/21)
+
+[Part 1 Solution](https://github.com/malibrud/AdventOfCode2024/blob/master/21/part1.c)
+
+[Part 2 Solution](https://github.com/malibrud/AdventOfCode2024/blob/master/21/part2.c)
+
+Whew!  This was a mind bender.  Have a robot control a robot control a robot to punch in a correct code.
+Part 1 was done by building up the sequences and was pretty fun.  I struggled with the _optimization_ and
+avoiding the _blank_ key and evenutally found [this post](https://www.reddit.com/r/adventofcode/comments/1hjgyps/2024_day_21_part_2_i_got_greedyish/).  For both solutions I chose not to use the ASCII characters
+to store the sequences, but instead chose to store them in a tightly packed array as follows:
+
+```c
+typedef struct {
+    int8_t x;
+    int8_t y;
+    char   k;
+} Key;
+
+// Encode key positions.
+Key numKeyPad[ 11 ] = {
+    { 1, 3, '0' },
+
+    { 0, 2, '1' },
+    { 1, 2, '2' },
+    { 2, 2, '3' },
+
+    { 0, 1, '4' },
+    { 1, 1, '5' },
+    { 2, 1, '6' },
+
+    { 0, 0, '7' },
+    { 1, 0, '8' },
+    { 2, 0, '9' },
+
+    { 2, 3, 'A' }
+};
+#define NUM_A 10
+
+Key dirKeyPad[ 5 ] = {
+    { 2, 1, '>' },
+    { 1, 1, 'v' },
+    { 0, 1, '<' },
+    { 1, 0, '^' },
+    { 2, 0, 'A' }
+};
+
+#define DIR_R 0
+#define DIR_D 1
+#define DIR_L 2
+#define DIR_U 3
+#define DIR_A 4
+```
+where each key is encoded sequentailly.  That being said for part 1 I wrote a sequentially called function
+that did the three sets of directional key stroke sequences.  The part 1 code is as follows:
+
+```c
+void encodeNumSequence( char *code, int8_t *outSeq, int *outS ) {
+    int8_t x = numKeyPad[ NUM_A].x;
+    int8_t y = numKeyPad[ NUM_A].y;
+    int S = 0;
+    while( *code ) {
+        int idx = *code <= '9' ? *code - '0' : NUM_A;
+        int8_t nx = numKeyPad[ idx ].x;
+        int8_t ny = numKeyPad[ idx ].y;
+        int8_t dx = nx - x;
+        int8_t dy = ny - y;
+        if ( nx == 0 && y == 3 ){
+            for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+            for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+            for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+            for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+        } else
+        if ( x == 0 && ny == 3 ){
+            for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+            for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+            for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+            for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+        } else
+        if ( dx < 0 ){
+            for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+            for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+            for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+            for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+        }
+        else {
+            for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+            for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+            for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+            for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+        }
+        outSeq[ S++ ] = DIR_A;
+        x = nx;
+        y = ny;
+        code++;
+    }
+    *outS = S;
+}
+
+void encodeDirSequence( int8_t *inSeq, int inS, int8_t *outSeq, int *outS ) {
+    int8_t x = dirKeyPad[ DIR_A ].x;
+    int8_t y = dirKeyPad[ DIR_A ].y;
+    int S = 0;
+    for ( int i = 0; i < inS; i++ ) {
+        int8_t nx = dirKeyPad[ inSeq[ i ] ].x;
+        int8_t ny = dirKeyPad[ inSeq[ i ] ].y;
+        int8_t dx = nx - x;
+        int8_t dy = ny - y;
+        if ( nx == 0 && y == 0 ) {
+            for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+            for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+            for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+            for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+        } else
+        if ( x == 0 && ny == 0 ) {
+            for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+            for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+            for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+            for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+        } else
+        if ( dx < 0 ){
+            for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+            for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+            for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+            for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+        }
+        else {
+            for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+            for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+            for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+            for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+        }
+        outSeq[ S++ ] = DIR_A;
+        // printSequence( outSeq, S );
+        x = nx;
+        y = ny;
+    }
+    *outS = S;
+}
+
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Codes c = {};
+    check( tryGetDataFromFile( argv[ 1 ], &c ), "Error: Could not read data from %s.", argv[ 1 ] );
+
+    #define MAX_SEQUENCE 256
+    int8_t sequence1[ MAX_SEQUENCE ];
+    int8_t sequence2[ MAX_SEQUENCE ];
+    int8_t sequence3[ MAX_SEQUENCE ];
+    int S = 0;
+    int complexity = 0;
+    for ( int i = 0 ; i < N_CODES ; i++ ) {
+        printf( "Trying %s\n", c.codes[ i ] );
+        encodeNumSequence( c.codes[ i ], sequence1, &S );
+        printSequence( sequence1, S );
+        encodeDirSequence( sequence1, S, sequence2, &S );
+        printSequence( sequence2, S );
+        encodeDirSequence( sequence2, S, sequence3, &S );
+        printSequence( sequence3, S );
+        complexity += S * c.values[ i ];
+    }
+
+    printf( "%d\n", complexity );
+    return 0;
+}
+```
+
+For part 2, I had extend the depth of the robot chain to 25.  Needless to say the sequence length grew
+exponentially.  I abandoned doing the actual sequence and instead just computed the sequences needed for
+a single character for the next level of robot.  This kept things contained.  Computation was still 
+expoentially long so I implemented a grid based caching scheme to memoize the counting function.
+The part 2 solution with the caching scheme ran in just 11 ms.  The new parts of the solution are as follows:
+
+```c
+uint64_t cache[ 26 ][ N_DIR_KEYS ][ N_DIR_KEYS ];
+void cacheInit() {
+    for ( int i = 0; i < 26;         i++ )
+    for ( int j = 0; j < N_DIR_KEYS; j++ )
+    for ( int k = 0; k < N_DIR_KEYS; k++ )
+    {
+        cache[ i ][ j ][ k ] = UINT64_MAX;
+    }
+}
+bool cacheTryGetVal( int8_t curKey, int8_t nextKey, int levels, uint64_t *val ) {
+    if ( UINT64_MAX == cache[ levels ][ curKey ][ nextKey ] ) return false;
+    *val = cache[ levels ][ curKey ][ nextKey ];
+    return true;
+}
+
+void cacheSetVal( int8_t curKey, int8_t nextKey, int levels, uint64_t val ) {
+    assert( val != UINT64_MAX );
+    assert(  UINT64_MAX == cache[ levels ][ curKey ][ nextKey ] );
+    cache[ levels ][ curKey ][ nextKey ] = val;
+}
+
+uint64_t countDirSequence( int8_t curKey, int8_t nextKey, int levels ) {
+    uint64_t count = 0;
+    if ( cacheTryGetVal( curKey, nextKey, levels, &count ) ) return count;
+    if ( levels == 0 ) return 1;
+
+    int8_t x = dirKeyPad[ curKey ].x;
+    int8_t y = dirKeyPad[ curKey ].y;
+    int8_t nx = dirKeyPad[ nextKey ].x;
+    int8_t ny = dirKeyPad[ nextKey ].y;
+    int8_t dx = nx - x;
+    int8_t dy = ny - y;
+
+    // Build sequence to hit the key.
+    int8_t outSeq[ 16 ];
+    int S = 0;
+    if ( nx == 0 && y == 0 ) {
+        for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+        for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+        for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+        for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+    } else
+    if ( x == 0 && ny == 0 ) {
+        for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+        for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+        for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+        for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+    } else
+    if ( dx < 0 ){
+        for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+        for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+        for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+        for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+    }
+    else {
+        for ( int j = 0 ; j < dy ; j++ ) outSeq[ S++ ] = DIR_D;
+        for ( int j = 0 ; j > dy ; j-- ) outSeq[ S++ ] = DIR_U;
+        for ( int j = 0 ; j < dx ; j++ ) outSeq[ S++ ] = DIR_R;
+        for ( int j = 0 ; j > dx ; j-- ) outSeq[ S++ ] = DIR_L;
+    }
+    outSeq[ S++ ] = DIR_A;
+
+    // Recurse to get total count
+    int8_t key = DIR_A;
+    for ( int i = 0; i < S; i++ ) {
+        count += countDirSequence( key, outSeq[ i ], levels - 1 );
+        key = outSeq[ i ];
+    }
+    cacheSetVal( curKey, nextKey, levels, count );
+    //printSequence( outSeq, S );
+    return count;
+}
+
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Codes c = {};
+    check( tryGetDataFromFile( argv[ 1 ], &c ), "Error: Could not read data from %s.", argv[ 1 ] );
+
+    #define MAX_SEQUENCE 256
+    cacheInit();
+    int8_t numSeq[ MAX_SEQUENCE ];
+    int S = 0;
+    uint64_t complexity = 0;
+    for ( int i = 0 ; i < N_CODES ; i++ ) {
+        encodeNumSequence( c.codes[ i ], numSeq, &S );
+        int8_t key = DIR_A;
+        uint64_t count = 0;
+        for ( int s = 0 ; s < S ; s++ ) {
+            count += countDirSequence( key, numSeq[ s ], c.nDirKeypads );
+            key = numSeq[ s ];
+        }
+        complexity += count * c.values[ i ];
+    }
+
+    printf( "%llu\n", complexity );
+    return 0;
+}
+```
