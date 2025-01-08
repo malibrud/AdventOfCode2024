@@ -2465,3 +2465,107 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 22](https://adventofcode.com/2024/day/22)
+
+[Part 1 Solution](https://github.com/malibrud/AdventOfCode2024/blob/master/22/part1.c)
+
+[Part 2 Solution](https://github.com/malibrud/AdventOfCode2024/blob/master/22/part2.c)
+
+This problem was oriented on the implementation of a Pseudo Random Number Generator (PRNG) and then
+doing calculations on the values.  Both parts were pretty straightforward.   
+
+The part 1 soltuion is as follows:
+
+```C
+uint64_t prngNext( uint64_t seed ) {
+    uint64_t val = seed;
+
+    // Step 1
+    val ^= val * 64;            // Multiply and Mix
+    val %= 16777216;            // Prune
+
+    // Step 2
+    val ^= val / 32;            // Divide and Mix
+    val %= 16777216;            // Prune
+
+    // Step 3
+    val ^= val * 2048;          // Multiply and Mix
+    val %= 16777216;            // Prune
+
+    return val;
+}
+
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Numbers n = {};
+    check( tryGetDataFromFile( argv[ 1 ], &n ), "Error: Could not read data from %s.", argv[ 1 ] );
+
+    uint64_t sum = 0;
+    for ( int i = 0 ; i < n.S ; i++ ) {
+        uint64_t val = n.seeds[ i ];
+        for ( int j = 0 ; j < 2000 ; j++ ) val = prngNext( val );
+        sum += val;
+    }
+    printf( "%llu\n", sum );
+    return 0;
+}
+```
+
+Part 2 required computing modded diffs of the past five values and then looking for maximums 
+across each sequence with an identical pattern of diffs.  I could have developed a hash map
+but instead made an array in which I could look up past values.  This used an index which 
+was a four digit base-19 number.  The soution is as follows (PRNG code is the same):
+
+```C
+#define MAX_SIGNATURE ( 19 * 19 *19 * 19 )
+int8_t diffs[ MAX_SEEDS ][ MAX_SIGNATURE ];
+
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Numbers n = {};
+    check( tryGetDataFromFile( argv[ 1 ], &n ), "Error: Could not read data from %s.", argv[ 1 ] );
+
+    for ( int i = 0 ; i < n.S           ; i++ )
+    for ( int j = 0 ; j < MAX_SIGNATURE ; j++ )
+    {
+        diffs[ i ][ j ] = -1;
+    }
+
+    int d0 = 0;
+    int d1 = 0;
+    int d2 = 0;
+    int d3 = 0;
+    for ( int i = 0 ; i < n.S ; i++ ) {
+        int prev = n.seeds[ i ];
+        int val;
+        for ( int j = 0 ; j < 2000 ; j++ ) {
+            val = prngNext( prev );
+            d3 = d2;
+            d2 = d1;
+            d1 = d0;
+            d0 = val % 10 - prev % 10 + 9;
+            int idx = (19*19*19)*d3 + (19*19)*d2 + (19)*d1 + d0;
+            assert( idx >= 0 );
+            assert( idx <  MAX_SIGNATURE );
+            if ( diffs[ i ][ idx ] == -1 && j >= 3 ) diffs[ i ][ idx ] = val % 10; 
+            prev = val;
+        }
+    }
+
+    int maxBananas = 0;
+    for ( int i = 0 ; i < MAX_SIGNATURE ; i++ ) {
+
+        int bananas = 0;
+        for ( int j = 0 ; j < n.S ; j++ ) {
+            if ( diffs[ j ][ i ] != -1 ) 
+            bananas += diffs[ j ][ i ];
+        }
+        maxBananas = max( maxBananas, bananas );
+    }
+    printf( "%d\n", maxBananas );
+    return 0;
+}
+```
