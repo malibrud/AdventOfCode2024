@@ -122,8 +122,12 @@ void bronKerbosch( BkSet R, BkSet P, BkSet X, BkSet *M ) {
         bkClear( &newX );
     }
     
-
+    // Clean up temp space.
+    bkFree( &newR );
+    bkFree( &newP );
+    bkFree( &newX );
 }
+
 int main( int argc, char **argv ) {
     check( argc >= 2, "Usage: %s filename", argv[0] );
 
