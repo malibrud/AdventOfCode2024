@@ -52,7 +52,7 @@ int bkClear( BkSet *bk ) {
     return bk->count = 0;
 }
 
-int bkPrint( BkSet *bk ) {
+void bkPrint( BkSet *bk ) {
     int n = bk->nodes[ 0 ];
     int c1 = n / 26 + 'a';
     int c2 = n % 26 + 'a';
@@ -63,6 +63,7 @@ int bkPrint( BkSet *bk ) {
         c2 = n % 26 + 'a';
         printf( ",%c%c", c1, c2 );
     }
+    putchar( '\n' );
 }
 
 void bkRemoveAt( BkSet *bk, size_t i ) {
@@ -71,44 +72,53 @@ void bkRemoveAt( BkSet *bk, size_t i ) {
     bk->count--;
 }
 
-void bkCopy( BkSet *dst, BkSet *src ) {
+void bkNewCopy( BkSet *dst, BkSet *src ) {
     *dst = *src;
     dst->nodes = malloc( src->N * sizeof( int ) );
     memcpy( dst->nodes, src->nodes, src->count * sizeof( int ) );
 }
 
-void bronKerbosch( BkSet R, BkSet P, BkSet X ) {
+void bkCopy( BkSet *dst, BkSet *src ) {
+    assert( dst->N >= src->N );
+    memcpy( dst->nodes, src->nodes, src->count * sizeof( int ) );
+    dst->count = src->count;
+}
+
+void bronKerbosch( BkSet R, BkSet P, BkSet X, BkSet *M ) {
     if ( P.count == 0 && X.count == 0 ) {
-        bkPrint( &R );
+        if ( R.count > M->count ) bkCopy( M, &R );
     }
 
     BkSet newR;
     BkSet newP;
     BkSet newX;
 
-    bkCopy( &newR, &R );
+    bkNewCopy( &newR, &R );
     bkInit( &newP, D );
     bkInit( &newX, D );
 
-    for (int i = P.count-1; i >= 0; i++)
+    for ( int i = P.count-1; i >= 0; i-- )
     {
         int v = P.nodes[ i ];
         bkPush( &newR, v );
 
+        // newP <-- P ∩ N( v )
         for (size_t j = 0; j < P.count; j++) {
             int p = P.nodes[ j ];
             if ( graph[ v ][ p ] ) bkPush( &newP, p );
         }
         
+        // newX <-- X ∩ INT N( v )
         for (size_t j = 0; j < X.count; j++) {
             int x = X.nodes[ j ];
             if ( graph[ v ][ x ] ) bkPush( &newX, x );
         }
 
         // Recurse
-        bronKerbosch( newR, newP, newX );
+        bronKerbosch( newR, newP, newX, M );
 
-        // Move node from P to X
+        // P <-- P \ v
+        // X <-- X U v
         bkPop( &P );
         bkPush( &X, v );
 
@@ -127,7 +137,6 @@ int main( int argc, char **argv ) {
     check( tryGetDataFromFile( argv[ 1 ], &c ), "Error: Could not read data from %s.", argv[ 1 ] );
     int P = c.P;
 
-    int neighborCount[ D ] = {};
     for (size_t i = 0; i < P; i++)
     {
         char *pair = c.pairs[ i ];
@@ -135,59 +144,41 @@ int main( int argc, char **argv ) {
         int c2 = (pair[ 3 ] - 'a')*26 + ( pair[ 4 ] - 'a' );
         graph[ c1 ][ c2 ] = 1;
         graph[ c2 ][ c1 ] = 1;
-        neighborCount[ c1 ]++;
-        neighborCount[ c2 ]++;
     }
-    int maxNeighbor = 0;
-    for (size_t i = 0; i < D; i++)
-    {
-        maxNeighbor = max( maxNeighbor, neighborCount[ i ] );
-    }
-    int maxCount = 0;
-    for (size_t i = 0; i < D; i++)
-    {
-        if ( neighborCount[ i ] == maxNeighbor ) maxCount++;
-    }
-    printf( "max neighbor = %d, max neighbor count = %d\n", maxNeighbor, maxCount );
     
+    BkSet bkR;
+    BkSet bkP;
+    BkSet bkX;
+    BkSet bkMax;
+    bkInit( &bkR, D );
+    bkInit( &bkP, D );
+    bkInit( &bkX, D );
+    bkInit( &bkMax, D );
 
-    int count = 0;
-    for (int i = 0; i < D; i++)
+    for ( int i = 0; i < D; i++ )
+    for ( int j = 0; j < D; j++ )
     {
-        for (int j = i+1; j < D; j++)
-        {
-            if ( graph[ i ][ j ] == 0 ) continue;
-            for (int k = j+1; k < D; k++)
-            {
-                if ( graph[ i ][ k ] == 0 ) continue;
-                if ( graph[ j ][ k ] == 0 ) continue;
-                for (int m = k+1; m < D; m++)
-                {
-                    if ( graph[ i ][ m ] == 0 ) continue;
-                    if ( graph[ j ][ m ] == 0 ) continue;
-                    if ( graph[ k ][ m ] == 0 ) continue;
-                    for (int n = m+1; n < D; n++)
-                    {
-                        if ( graph[ i ][ n ] == 0 ) continue;
-                        if ( graph[ j ][ n ] == 0 ) continue;
-                        if ( graph[ k ][ n ] == 0 ) continue;
-                        if ( graph[ m ][ n ] == 0 ) continue;
-                        for (int p = n+1; p < D; p++)
-                        {
-                            if ( graph[ i ][ p ] == 0 ) continue;
-                            if ( graph[ j ][ p ] == 0 ) continue;
-                            if ( graph[ k ][ p ] == 0 ) continue;
-                            if ( graph[ m ][ p ] == 0 ) continue;
-                            if ( graph[ n ][ p ] == 0 ) continue;
-                            count++;
-                        }
-                    }
-                }
-            }
+        if ( graph[ j ][ i ] ) {
+            bkPush( &bkP, i );
+            break;
+        }
+    }
+
+    bronKerbosch( bkR, bkP, bkX, &bkMax );
+
+    // Bubble sort
+    for (size_t i = 0; i < bkMax.count; i++)
+    for (size_t j = i; j < bkMax.count; j++)
+    {
+        if ( bkMax.nodes[ i ] > bkMax.nodes[ j ] ) {
+            int temp = bkMax.nodes[ i ];
+            bkMax.nodes[ i ] = bkMax.nodes[ j ];
+            bkMax.nodes[ j ] = temp;
         }
     }
     
-    printf( "%d\n", count );
+    bkPrint( &bkMax );
+    
     return 0;
 }
 
