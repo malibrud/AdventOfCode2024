@@ -21,7 +21,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/part2.exe",
-            "args": [ "test.txt" ],
+            "args": [ "data.txt" ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
