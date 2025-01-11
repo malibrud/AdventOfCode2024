@@ -2569,3 +2569,180 @@ int main( int argc, char **argv ) {
     return 0;
 }
 ```
+
+## [Day 23](https://adventofcode.com/2024/day/23)
+
+[Part 1 Solution](https://github.com/malibrud/AdventOfCode2024/blob/master/23/part1.c)
+
+[Part 2 Solution](https://github.com/malibrud/AdventOfCode2024/blob/master/23/part2.c)
+
+This problem was about finding fully connected subgraphs in a graph.  For part 1 the task was to find 
+the number of fully connected subgraphs of order 3.  For part 2 it was to find the largest fully
+connected subgraph.  Part 1 was just brute force search with three nested loops.  For part 2 I had 
+to implement the [Bron–Kerbosch algorithm](https://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm) 
+without pivoting.  My solution and implementation of the Bron-Kerbosch algorithm is as follows:
+
+```C
+#define D (26*26)
+int graph[ D ][ D ]; // connectivity graph
+
+typedef struct {
+    int *nodes;
+    int count;
+    int N;
+} BkSet;
+
+void bkInit( BkSet *bk, int N ) {
+    check( bk->nodes = malloc( N * sizeof( int ) ), "Error: Out of Memory" );
+    bk->N = N;
+    bk->count = 0;
+}
+
+void bkFree( BkSet *bk ) {
+    assert( bk );
+    free( bk->nodes );
+    bk->N = 0;
+    bk->count = 0;
+}
+
+void bkPush( BkSet *bk, int val ) {
+    assert( bk->count < bk->N );
+    bk->nodes[ bk->count++ ] = val;
+}
+
+int bkPop( BkSet *bk ) {
+    return bk->nodes[ --bk->count ];
+}
+
+int bkClear( BkSet *bk ) {
+    return bk->count = 0;
+}
+
+void bkPrint( BkSet *bk ) {
+    int n = bk->nodes[ 0 ];
+    int c1 = n / 26 + 'a';
+    int c2 = n % 26 + 'a';
+    printf( "%c%c", c1, c2 );
+    for (size_t i = 1; i < bk->count; i++) {
+        n = bk->nodes[ i ];
+        c1 = n / 26 + 'a';
+        c2 = n % 26 + 'a';
+        printf( ",%c%c", c1, c2 );
+    }
+    putchar( '\n' );
+}
+
+void bkNewCopy( BkSet *dst, BkSet *src ) {
+    *dst = *src;
+    dst->nodes = malloc( src->N * sizeof( int ) );
+    memcpy( dst->nodes, src->nodes, src->count * sizeof( int ) );
+}
+
+void bkCopy( BkSet *dst, BkSet *src ) {
+    assert( dst->N >= src->N );
+    memcpy( dst->nodes, src->nodes, src->count * sizeof( int ) );
+    dst->count = src->count;
+}
+
+void bronKerbosch( BkSet R, BkSet P, BkSet X, BkSet *M ) {
+    if ( P.count == 0 && X.count == 0 ) {
+        if ( R.count > M->count ) bkCopy( M, &R );
+    }
+
+    BkSet newR;
+    BkSet newP;
+    BkSet newX;
+
+    bkNewCopy( &newR, &R );
+    bkInit( &newP, D );
+    bkInit( &newX, D );
+
+    for ( int i = P.count-1; i >= 0; i-- )
+    {
+        int v = P.nodes[ i ];
+        bkPush( &newR, v );
+
+        // newP <-- P ∩ N( v )
+        for (size_t j = 0; j < P.count; j++) {
+            int p = P.nodes[ j ];
+            if ( graph[ v ][ p ] ) bkPush( &newP, p );
+        }
+        
+        // newX <-- X ∩ INT N( v )
+        for (size_t j = 0; j < X.count; j++) {
+            int x = X.nodes[ j ];
+            if ( graph[ v ][ x ] ) bkPush( &newX, x );
+        }
+
+        // Recurse
+        bronKerbosch( newR, newP, newX, M );
+
+        // P <-- P \ v
+        // X <-- X U v
+        bkPop( &P );
+        bkPush( &X, v );
+
+        // Reset working sets for next loop
+        bkPop( &newR );
+        bkClear( &newP );
+        bkClear( &newX );
+    }
+    
+    // Clean up temp space.
+    bkFree( &newR );
+    bkFree( &newP );
+    bkFree( &newX );
+}
+
+int main( int argc, char **argv ) {
+    check( argc >= 2, "Usage: %s filename", argv[0] );
+
+    Computers c = {};
+    check( tryGetDataFromFile( argv[ 1 ], &c ), "Error: Could not read data from %s.", argv[ 1 ] );
+    int P = c.P;
+
+    for (size_t i = 0; i < P; i++)
+    {
+        char *pair = c.pairs[ i ];
+        int c1 = (pair[ 0 ] - 'a')*26 + ( pair[ 1 ] - 'a' );
+        int c2 = (pair[ 3 ] - 'a')*26 + ( pair[ 4 ] - 'a' );
+        graph[ c1 ][ c2 ] = 1;
+        graph[ c2 ][ c1 ] = 1;
+    }
+    
+    BkSet bkR;
+    BkSet bkP;
+    BkSet bkX;
+    BkSet bkMax;
+    bkInit( &bkR, D );
+    bkInit( &bkP, D );
+    bkInit( &bkX, D );
+    bkInit( &bkMax, D );
+
+    for ( int i = 0; i < D; i++ )
+    for ( int j = 0; j < D; j++ )
+    {
+        if ( graph[ j ][ i ] ) {
+            bkPush( &bkP, i );
+            break;
+        }
+    }
+
+    bronKerbosch( bkR, bkP, bkX, &bkMax );
+
+    // Bubble sort
+    for (size_t i = 0; i < bkMax.count; i++)
+    for (size_t j = i; j < bkMax.count; j++)
+    {
+        if ( bkMax.nodes[ i ] > bkMax.nodes[ j ] ) {
+            int temp = bkMax.nodes[ i ];
+            bkMax.nodes[ i ] = bkMax.nodes[ j ];
+            bkMax.nodes[ j ] = temp;
+        }
+    }
+    
+    bkPrint( &bkMax );
+    
+    return 0;
+}
+```
