@@ -66,12 +66,6 @@ void bkPrint( BkSet *bk ) {
     putchar( '\n' );
 }
 
-void bkRemoveAt( BkSet *bk, size_t i ) {
-    size_t bytes = ( bk->count - i - 1 ) * sizeof( int );
-    memmove( bk->nodes + i, bk->nodes + i + 1, bytes );
-    bk->count--;
-}
-
 void bkNewCopy( BkSet *dst, BkSet *src ) {
     *dst = *src;
     dst->nodes = malloc( src->N * sizeof( int ) );
